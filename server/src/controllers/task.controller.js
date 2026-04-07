@@ -1,0 +1,79 @@
+const Task = require("../models/task.model");
+
+const createTask = async (req, res, next) => {
+  try {
+    const { title, description, project } = req.body;
+
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only admins can create tasks" });
+    }
+
+    const task = await Task.create({
+      title,
+      description,
+      project,
+      assignedTo: req.user._id,
+    });
+
+    res.status(201).json(task);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getTasks = async (req, res, next) => {
+  try {
+    const tasks = await Task.find({
+      project: req.params.projectId,
+    });
+
+    res.json(tasks);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateTask = async (req, res, next) => {
+  try {
+    const task = await Task.findById(req.params.id);
+
+    if (!task) throw new Error("Task not found");
+
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only admins can update tasks" });
+    }
+
+    Object.assign(task, req.body);
+
+    await task.save();
+
+    res.json(task);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteTask = async (req, res, next) => {
+  try {
+    const task = await Task.findById(req.params.id);
+
+    if (!task) throw new Error("Task not found");
+
+    if (req.user.role !== "admin") {
+      return res.status(403).json({ message: "Only admins can delete tasks" });
+    }
+
+    await task.deleteOne();
+
+    res.json({ message: "Task deleted" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAllTasks = async (req, res) => {
+  const tasks = await Task.find();
+  res.json(tasks);
+};
+
+module.exports = { createTask, getTasks, updateTask, deleteTask, getAllTasks };
