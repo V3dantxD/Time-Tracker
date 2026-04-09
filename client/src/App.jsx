@@ -7,6 +7,7 @@ import Navbar from "./components/Navbar";
 import Projects from "./pages/Projects";
 import Tasks from "./pages/Tasks";
 import AdminDashboard from "./pages/AdminDashboard";
+import Landing from "./pages/Landing";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
       <Navbar />
 
       <Routes>
+        <Route path="/" element={<Landing />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
 

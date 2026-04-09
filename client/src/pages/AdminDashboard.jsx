@@ -126,7 +126,7 @@ function AnalyticsTab() {
   useEffect(() => {
     API.get("/timelogs/admin/members")
       .then(({ data }) => setMembers(data))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoadingMembers(false));
   }, []);
 
@@ -259,7 +259,7 @@ function ScreenshotsTab() {
   useEffect(() => {
     API.get("/screenshots/admin/all")
       .then(({ data }) => setMembers(data))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoadingList(false));
   }, []);
 
