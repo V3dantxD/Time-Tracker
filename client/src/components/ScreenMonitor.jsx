@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useContext } from "react";
 import API from "../api/axios";
 import ScreenMonitorModal from "./ScreenMonitorModal";
+import { AuthContext } from "../context/AuthContext";
 
 /**
  * Mandatory screen monitoring component for employees.
@@ -20,11 +21,25 @@ export default function ScreenMonitor() {
   const [captureCount, setCaptureCount] = useState(0);
   const [warningShown, setWarningShown] = useState(false);
 
+  const { user } = useContext(AuthContext);
+
   const streamRef = useRef(null);
   const timeoutRef = useRef(null);
   const canvasRef = useRef(null);
 
+  // Stop monitoring if logged out or admin
+  useEffect(() => {
+    if (!user || user.role === "admin") {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+    }
+  }, [user]);
+
   // Fetch today's count on mount
+
   useEffect(() => {
     API.get("/screenshots/mine")
       .then(({ data }) => setCaptureCount(data.todayCount || 0))
@@ -112,6 +127,8 @@ export default function ScreenMonitor() {
     };
   }, []);
 
+  if (!user || user.role === "admin") return null;
+
   return (
     <>
       {/* Hidden canvas used for frame capture */}
@@ -122,8 +139,8 @@ export default function ScreenMonitor() {
         <ScreenMonitorModal onAccepted={handleAccepted} />
       )}
 
-      {/* Status card shown on dashboard — intentionally minimal, no countdown */}
-      <div className="relative bg-gray-900/80 backdrop-blur-md border border-white/10 rounded-2xl p-5 overflow-hidden">
+      {/* Status card shown globally — fixed at bottom left */}
+      <div className="fixed bottom-6 right-6 z-50 w-80 bg-gray-900/90 backdrop-blur-md border border-white/10 rounded-2xl p-5 shadow-2xl overflow-hidden group">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
 
         <div className="flex items-center gap-3">

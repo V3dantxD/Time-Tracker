@@ -5,7 +5,6 @@ import API from "../api/axios";
 import TimeLogs from "../components/TimeLogs";
 import Stats from "../components/Stats";
 import ProjectCard from "../components/ProjectCard";
-import ScreenMonitor from "../components/ScreenMonitor";
 import { AuthContext } from "../context/AuthContext";
 
 const formatDuration = (seconds) => {
@@ -240,9 +239,6 @@ export default function Dashboard() {
 
       {/* Divider */}
       <div className="h-px bg-white/5" />
-
-      {/* Screen Monitoring Widget */}
-      <ScreenMonitor />
 
       {/* Divider */}
       <div className="h-px bg-white/5" />

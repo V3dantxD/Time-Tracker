@@ -8,11 +8,13 @@ import Projects from "./pages/Projects";
 import Tasks from "./pages/Tasks";
 import AdminDashboard from "./pages/AdminDashboard";
 import Landing from "./pages/Landing";
+import ScreenMonitor from "./components/ScreenMonitor";
 
 function App() {
   return (
     <Router>
       <Navbar />
+      <ScreenMonitor />
 
       <Routes>
         <Route path="/" element={<Landing />} />
