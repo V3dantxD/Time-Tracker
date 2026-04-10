@@ -71,9 +71,22 @@ const deleteTask = async (req, res, next) => {
   }
 };
 
-const getAllTasks = async (req, res) => {
-  const tasks = await Task.find();
-  res.json(tasks);
+const getAllTasks = async (req, res, next) => {
+  try {
+    let tasks = [];
+    if (req.user.role === "admin") {
+      tasks = await Task.find().populate("project");
+    } else {
+      const Project = require("../models/project.model");
+      const userProjects = await Project.find({ members: req.user._id }).select("_id");
+      const projectIds = userProjects.map((p) => p._id);
+      
+      tasks = await Task.find({ project: { $in: projectIds } }).populate("project");
+    }
+    res.json(tasks);
+  } catch (error) {
+    next(error);
+  }
 };
 
 module.exports = { createTask, getTasks, updateTask, deleteTask, getAllTasks };

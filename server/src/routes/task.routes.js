@@ -11,7 +11,7 @@ const { protect } = require("../middlewares/auth.middleware.js");
 const router = express.Router();
 
 router.post("/", protect, createTask);
-router.get("/", getAllTasks);
+router.get("/", protect, getAllTasks);
 router.get("/:projectId", protect, getTasks);
 router.put("/:id", protect, updateTask);
 router.delete("/:id", protect, deleteTask);
