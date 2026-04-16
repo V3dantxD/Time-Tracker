@@ -6,7 +6,9 @@ import { AuthContext } from "../context/AuthContext";
 function Tasks() {
   const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
-  const [form, setForm] = useState({ title: "", project: "" });
+  const [members, setMembers] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState("");
+  const [form, setForm] = useState({ title: "", project: "", assignedTo: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const { user } = useContext(AuthContext);
@@ -24,16 +26,17 @@ function Tasks() {
   useEffect(() => {
     if (user && user.role == "admin") {
       setIsAdmin(true);
+      API.get("/timelogs/admin/members").then(({ data }) => setMembers(data)).catch(() => { });
     }
     fetchTasks();
     fetchProjects();
-  }, []);
+  }, [user]);
 
   const createTask = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     await API.post("/tasks", form);
-    setForm({ title: "", project: "" });
+    setForm({ title: "", project: "", assignedTo: "" });
     await fetchTasks();
     setIsSubmitting(false);
   };
@@ -176,6 +179,53 @@ function Tasks() {
               </div>
             </div>
 
+            <div className="relative flex-1">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </div>
+              <select
+                className="w-full bg-gray-800/80 border border-white/10 text-sm text-white rounded-xl pl-10 pr-8 py-3 appearance-none focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all duration-200 cursor-pointer"
+                value={form.assignedTo}
+                onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}
+              >
+                <option value="" className="bg-gray-900">
+                  Assign to (Self)
+                </option>
+                {members.map((m) => (
+                  <option key={m._id} value={m._id} className="bg-gray-900">
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+              {/* Chevron */}
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 pointer-events-none">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+            </div>
+
             {/* Submit */}
             <button
               type="submit"
@@ -249,15 +299,31 @@ function Tasks() {
               All Tasks
             </h2>
           </div>
-          {tasks.length > 0 && (
-            <span className="text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">
-              {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
-            </span>
-          )}
+
+          <div className="flex items-center gap-3">
+            <select
+              className="bg-gray-900/80 border border-white/10 text-xs text-white rounded-lg px-3 py-1.5 appearance-none focus:outline-none focus:border-emerald-500/50 cursor-pointer"
+              value={selectedProjectId}
+              onChange={(e) => setSelectedProjectId(e.target.value)}
+            >
+              <option value="">All Projects</option>
+              {projects.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+
+            {tasks.length > 0 && (
+              <span className="text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-3 py-1">
+                {tasks.length} {tasks.length === 1 ? "task" : "tasks"}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Empty state */}
-        {tasks.length === 0 && (
+        {(selectedProjectId ? tasks.filter(t => t.project?._id === selectedProjectId) : tasks).length === 0 && (
           <div className="bg-gray-900/80 backdrop-blur-md border border-white/10 rounded-2xl p-12 flex flex-col items-center justify-center text-center shadow-lg">
             <div className="w-12 h-12 rounded-xl bg-gray-800 border border-white/10 flex items-center justify-center mb-4">
               <svg
@@ -283,7 +349,7 @@ function Tasks() {
 
         {/* Task rows */}
         <div className="space-y-3">
-          {tasks.map((t, index) => (
+          {(selectedProjectId ? tasks.filter(t => t.project?._id === selectedProjectId) : tasks).map((t, index) => (
             <div
               key={t._id}
               className="relative group bg-gray-900/80 backdrop-blur-md border border-white/10 rounded-xl px-5 py-4 shadow-lg hover:border-emerald-500/30 hover:shadow-emerald-500/10 transition-all duration-300 hover:-translate-y-0.5 overflow-hidden"

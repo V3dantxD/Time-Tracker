@@ -7,7 +7,8 @@ import { AuthContext } from "../context/AuthContext";
 function Projects() {
   const [projects, setProjects] = useState([]);
   const { user } = useContext(AuthContext);
-  const [form, setForm] = useState({ name: "", description: "" });
+  const [form, setForm] = useState({ name: "", description: "", members: [] });
+  const [members, setMembers] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const fetchProjects = async () => {
@@ -18,15 +19,16 @@ function Projects() {
   useEffect(() => {
     if (user && user.role == "admin") {
       setIsAdmin(true);
+      API.get("/timelogs/admin/members").then(({ data }) => setMembers(data)).catch(() => {});
     }
     fetchProjects();
-  }, []);
+  }, [user]);
 
   const createProject = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     await API.post("/projects", form);
-    setForm({ name: "", description: "" });
+    setForm({ name: "", description: "", members: [] });
     await fetchProjects();
     setIsSubmitting(false);
   };
@@ -95,8 +97,9 @@ function Projects() {
 
           <form
             onSubmit={createProject}
-            className="flex flex-col sm:flex-row gap-3"
+            className="flex flex-col gap-3"
           >
+            <div className="flex flex-col sm:flex-row gap-3">
             {/* Name input */}
             <div className="relative flex-1">
               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600">
@@ -188,6 +191,40 @@ function Projects() {
               )}
               {isSubmitting ? "Adding..." : "Add Project"}
             </button>
+            </div>
+
+            {members.length > 0 && (
+              <div className="w-full mt-1 bg-gray-800/40 border border-white/5 rounded-xl p-4">
+                <label className="block text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">Assign Members</label>
+                <div className="flex flex-wrap gap-2">
+                  {members.map((m) => (
+                    <label key={m._id} className={`flex items-center gap-2 border rounded-xl px-3 py-2 cursor-pointer transition-all ${form.members.includes(m._id) ? "bg-emerald-500/10 border-emerald-500/40 shadow-sm shadow-emerald-500/10" : "bg-gray-900 border-white/10 hover:border-emerald-500/30"}`}>
+                      <input
+                        type="checkbox"
+                        className="hidden"
+                        checked={form.members.includes(m._id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setForm({ ...form, members: [...form.members, m._id] });
+                          } else {
+                            setForm({ ...form, members: form.members.filter((id) => id !== m._id) });
+                          }
+                        }}
+                      />
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${form.members.includes(m._id) ? "bg-emerald-500 border-emerald-500" : "bg-gray-800 border-white/20"}`}>
+                        {form.members.includes(m._id) && (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                        )}
+                      </div>
+                      <div>
+                        <p className={`text-xs font-semibold ${form.members.includes(m._id) ? "text-emerald-400" : "text-white"}`}>{m.name}</p>
+                        <p className="text-[10px] text-gray-500">{m.email}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
           </form>
         </div>
       ) : (

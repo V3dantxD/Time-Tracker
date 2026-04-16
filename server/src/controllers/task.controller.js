@@ -12,7 +12,7 @@ const createTask = async (req, res, next) => {
       title,
       description,
       project,
-      assignedTo: req.user._id,
+      assignedTo: req.body.assignedTo || req.user._id,
     });
 
     res.status(201).json(task);
@@ -23,9 +23,11 @@ const createTask = async (req, res, next) => {
 
 const getTasks = async (req, res, next) => {
   try {
-    const tasks = await Task.find({
-      project: req.params.projectId,
-    });
+    const filter = { project: req.params.projectId };
+    if (req.user.role !== "admin") {
+      filter.assignedTo = req.user._id;
+    }
+    const tasks = await Task.find(filter);
 
     res.json(tasks);
   } catch (error) {
@@ -81,7 +83,7 @@ const getAllTasks = async (req, res, next) => {
       const userProjects = await Project.find({ members: req.user._id }).select("_id");
       const projectIds = userProjects.map((p) => p._id);
       
-      tasks = await Task.find({ project: { $in: projectIds } }).populate("project");
+      tasks = await Task.find({ project: { $in: projectIds }, assignedTo: req.user._id }).populate("project");
     }
     res.json(tasks);
   } catch (error) {

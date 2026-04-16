@@ -86,9 +86,9 @@ const getAllLatestScreenshots = async (req, res, next) => {
           member: { _id: member._id, name: member.name, email: member.email },
           latest: latest
             ? {
-              url: latest.filePath,
-              capturedAt: latest.capturedAt,
-            }
+                url: latest.filePath,
+                capturedAt: latest.capturedAt,
+              }
             : null,
           todayCount,
         };
@@ -186,4 +186,3 @@ module.exports = {
   logMonitoringWarning,
   getMonitoringWarnings,
 };
-
