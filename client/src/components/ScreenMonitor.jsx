@@ -3,19 +3,6 @@ import API from "../api/axios";
 import ScreenMonitorModal from "./ScreenMonitorModal";
 import { AuthContext } from "../context/AuthContext";
 
-/**
- * Mandatory screen monitoring component for employees.
- *
- * Behaviour:
- * - Shows the consent modal until the user accepts (or is logged out on decline)
- * - Once accepted: captures screenshots silently at random intervals (45–90s)
- * - The user CANNOT see when the next shot will be taken
- * - The user CANNOT turn off monitoring — no toggle exists
- * - If the browser stream ends (user clicks "Stop sharing" in browser chrome):
- *     → API warning is sent to admin
- *     → Warning banner shown to user
- *     → Consent modal is re-shown (they must restart sharing to continue)
- */
 export default function ScreenMonitor() {
   const [phase, setPhase] = useState("modal"); // modal | active | warning
   const [captureCount, setCaptureCount] = useState(0);
@@ -27,7 +14,6 @@ export default function ScreenMonitor() {
   const timeoutRef = useRef(null);
   const canvasRef = useRef(null);
 
-  // Stop monitoring if logged out or admin
   useEffect(() => {
     if (!user || user.role === "admin") {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -38,15 +24,13 @@ export default function ScreenMonitor() {
     }
   }, [user]);
 
-  // Fetch today's count on mount
 
   useEffect(() => {
     API.get("/screenshots/mine")
       .then(({ data }) => setCaptureCount(data.todayCount || 0))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
-  /* ─── capture one screenshot and upload ─── */
   const captureAndUpload = useCallback(async () => {
     const stream = streamRef.current;
     if (!stream || !stream.active) return;
@@ -70,9 +54,7 @@ export default function ScreenMonitor() {
     }
   }, []);
 
-  /* ─── schedule next capture at a random interval (45–90s) ─── */
   const scheduleNext = useCallback(() => {
-    // Randomised — user cannot predict when next screenshot happens
     const delay = 45_000 + Math.floor(Math.random() * 45_000);
     timeoutRef.current = setTimeout(async () => {
       await captureAndUpload();
@@ -80,7 +62,6 @@ export default function ScreenMonitor() {
     }, delay);
   }, [captureAndUpload]);
 
-  /* ─── handle stream ending (user clicked "Stop sharing" in browser) ─── */
   const handleStreamEnded = useCallback(async () => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -88,36 +69,33 @@ export default function ScreenMonitor() {
     }
     streamRef.current = null;
 
-    // Notify admin via API
     try {
       await API.post("/screenshots/warning", {
         reason: "Employee stopped screen sharing during active monitoring session",
       });
-    } catch { /* best effort */ }
+    } catch (err) {
+      console.error("Screenshot warning error:", err);
+    }
 
     setWarningShown(true);
-    setPhase("warning"); // triggers modal re-render
+    setPhase("warning");
   }, []);
 
-  /* ─── called by modal when user accepts and stream is ready ─── */
   const handleAccepted = useCallback(
     async (stream) => {
       streamRef.current = stream;
 
-      // Detect native browser "Stop sharing" button
       stream.getVideoTracks()[0].addEventListener("ended", handleStreamEnded);
 
       setPhase("active");
       setWarningShown(false);
 
-      // First capture immediately
       await captureAndUpload();
       scheduleNext();
     },
     [captureAndUpload, scheduleNext, handleStreamEnded],
   );
 
-  /* ─── cleanup on unmount ─── */
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -131,26 +109,22 @@ export default function ScreenMonitor() {
 
   return (
     <>
-      {/* Hidden canvas used for frame capture */}
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Mandatory consent modal — shown on first load or after stream was stopped */}
       {(phase === "modal" || phase === "warning") && (
         <ScreenMonitorModal onAccepted={handleAccepted} />
       )}
 
-      {/* Status card shown globally — fixed at bottom left */}
       <div className="fixed bottom-6 right-6 z-50 w-80 bg-gray-900/90 backdrop-blur-md border border-white/10 rounded-2xl p-5 shadow-2xl overflow-hidden group">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
 
         <div className="flex items-center gap-3">
-          {/* Icon */}
           <div
             className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300
             ${phase === "active"
-              ? "bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/30"
-              : "bg-red-500/20 border border-red-500/30"
-            }`}
+                ? "bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/30"
+                : "bg-red-500/20 border border-red-500/30"
+              }`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 ${phase === "active" ? "text-white" : "text-red-400"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="3" width="20" height="14" rx="2" />

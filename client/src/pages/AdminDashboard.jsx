@@ -38,7 +38,6 @@ const fmtDate = (str) => {
   });
 };
 
-/* ─────────────── Shared chart sub-components ─────────────── */
 const CustomTooltip = ({ active, payload, label, color = "#34d399" }) => {
   if (active && payload && payload.length) {
     return (
@@ -1267,7 +1266,6 @@ export default function AdminDashboard() {
               <path d={tab.icon} />
             </svg>
             <span className="hidden sm:inline">{tab.label}</span>
-            {/* Red badge for monitoring alerts */}
             {tab.hasAlert && warningCount > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-lg shadow-red-500/30 animate-pulse">
                 {warningCount > 9 ? "9+" : warningCount}

@@ -2,12 +2,7 @@ import { useState, useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
 import API from "../api/axios";
 
-/**
- * Mandatory screen monitoring consent modal.
- * - Shown on first dashboard load for non-admin employees
- * - "Accept & Start Monitoring" → starts getDisplayMedia → calls onAccepted(stream)
- * - "Decline" or closing → logs warning + logs the user out immediately
- */
+
 export default function ScreenMonitorModal({ onAccepted }) {
   const { logout } = useContext(AuthContext);
   const [step, setStep] = useState("prompt"); // prompt | requesting | error
@@ -42,7 +37,6 @@ export default function ScreenMonitorModal({ onAccepted }) {
   };
 
   return (
-    // Prevent closing by clicking outside — overlay is non-interactive
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md">
       {/* Ambient glow */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
