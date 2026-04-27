@@ -1172,11 +1172,6 @@ const TABS = [
     label: "Screenshots",
     icon: "M2 3h20v14H2zM8 21h8M12 17v4",
   },
-  {
-    id: "attendance",
-    label: "Attendance",
-    icon: "M8 7V3m8 4V3M3 11h18M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z",
-  },
 ];
 
 export default function AdminDashboard() {
@@ -1203,7 +1198,7 @@ export default function AdminDashboard() {
   }, [user, navigate]);
 
   return (
-    <div className="min-h-screen bg-gray-950 px-6 py-8 space-y-8">
+    <div className="min-h-screen px-6 py-8 space-y-8" style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}>
       {/* Ambient blobs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl" />
@@ -1279,7 +1274,6 @@ export default function AdminDashboard() {
       {activeTab === "analytics" && <AnalyticsTab />}
       {activeTab === "monitoring" && <MonitoringTab />}
       {activeTab === "screenshots" && <ScreenshotsTab />}
-      {activeTab === "attendance" && <AttendanceTab />}
     </div>
   );
 }

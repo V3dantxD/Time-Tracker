@@ -2,20 +2,80 @@ import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api/axios";
 import { AuthContext } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
+
+/* ── Reusable styled input ─────────────────────────────────────────── */
+function ThemedInput({ icon, type = "text", placeholder, onChange, required, maxLength, extra = {} }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <div style={{ position: "relative" }}>
+      {icon && (
+        <span style={{
+          position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+          color: "var(--text-muted)", pointerEvents: "none", display: "flex"
+        }}>
+          {icon}
+        </span>
+      )}
+      <input
+        type={type}
+        placeholder={placeholder}
+        required={required}
+        maxLength={maxLength}
+        onChange={onChange}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{
+          width: "100%",
+          background: "var(--input-bg)",
+          border: `1px solid ${focused ? "rgba(52,211,153,0.55)" : "var(--border-subtle)"}`,
+          boxShadow: focused ? "0 0 0 3px rgba(52,211,153,0.12)" : "none",
+          borderRadius: 12,
+          padding: icon ? "12px 16px 12px 40px" : "12px 16px",
+          fontSize: 14,
+          color: "var(--text-primary)",
+          outline: "none",
+          transition: "border-color 0.2s, box-shadow 0.2s",
+          ...extra,
+        }}
+      />
+    </div>
+  );
+}
+
+const IconMail = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" />
+  </svg>
+);
+const IconLock = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
+const IconEyeOff = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+    <line x1="1" y1="1" x2="23" y2="23" />
+  </svg>
+);
+const IconEye = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+  </svg>
+);
 
 export default function Login() {
   const { login } = useContext(AuthContext);
+  const { theme } = useTheme();
   const navigate = useNavigate();
+  const isDark = theme === "dark";
 
   const [step, setStep] = useState("login");
   const [form, setForm] = useState({ email: "", password: "" });
-  const [resetForm, setResetForm] = useState({
-    email: "",
-    passkey: "",
-    newPassword: "",
-  });
+  const [resetForm, setResetForm] = useState({ email: "", passkey: "", newPassword: "" });
   const [showPassword, setShowPassword] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -34,248 +94,175 @@ export default function Login() {
 
   const handleForgotSubmit = async (e) => {
     e.preventDefault();
-    setErrorMsg("");
-    setSuccessMsg("");
-    setLoading(true);
+    setErrorMsg(""); setSuccessMsg(""); setLoading(true);
     try {
-      const { data } = await API.post("/auth/forgot-password", {
-        email: resetForm.email,
-      });
+      const { data } = await API.post("/auth/forgot-password", { email: resetForm.email });
       setSuccessMsg(data.message);
       setStep("reset");
     } catch (err) {
       setErrorMsg(err.response?.data?.message || err.message);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
   const handleResetSubmit = async (e) => {
     e.preventDefault();
-    setErrorMsg("");
-    setSuccessMsg("");
-    setLoading(true);
+    setErrorMsg(""); setSuccessMsg(""); setLoading(true);
     try {
       const { data } = await API.post("/auth/reset-password", resetForm);
       setSuccessMsg(data.message);
-      // Wait a moment then go to login
-      setTimeout(() => {
-        setStep("login");
-        setForm((prev) => ({ ...prev, email: resetForm.email }));
-        setSuccessMsg("");
-      }, 2000);
+      setTimeout(() => { setStep("login"); setForm(p => ({ ...p, email: resetForm.email })); setSuccessMsg(""); }, 2000);
     } catch (err) {
       setErrorMsg(err.response?.data?.message || err.message);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
+  };
+
+  /* ── Shared card style ─────────────────────────────────────────────── */
+  const cardStyle = {
+    position: "relative",
+    background: isDark ? "rgba(17,24,39,0.85)" : "rgba(255,255,255,0.95)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
+    border: `1px solid ${isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"}`,
+    borderRadius: 20,
+    padding: "32px",
+    boxShadow: isDark
+      ? "0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)"
+      : "0 24px 60px rgba(15,23,42,0.12), 0 0 0 1px rgba(0,0,0,0.04)",
+    overflow: "hidden",
+  };
+
+  const labelStyle = {
+    display: "block",
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "var(--text-muted)",
+    marginBottom: 6,
+  };
+
+  const primaryBtnStyle = {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: "13px 20px",
+    marginTop: 8,
+    borderRadius: 12,
+    fontSize: 14,
+    fontWeight: 700,
+    color: "#fff",
+    background: "linear-gradient(135deg, #10b981 0%, #0d9488 100%)",
+    border: "none",
+    cursor: "pointer",
+    boxShadow: "0 4px 20px rgba(16,185,129,0.35)",
+    transition: "transform 0.15s, box-shadow 0.15s",
+  };
+
+  const secondaryBtnStyle = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "13px 20px",
+    marginTop: 8,
+    borderRadius: 12,
+    fontSize: 14,
+    fontWeight: 600,
+    color: "var(--text-secondary)",
+    background: "var(--bg-hover)",
+    border: `1px solid var(--border-subtle)`,
+    cursor: "pointer",
+    transition: "background 0.2s",
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
-      {/* Ambient blobs */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl" />
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-teal-500/5 rounded-full blur-3xl" />
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", background: "var(--bg-base)", position: "relative", overflow: "hidden" }}>
+
+      {/* Ambient glows */}
+      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: "-80px", left: "-80px", width: 480, height: 480, background: "radial-gradient(circle, rgba(16,185,129,0.12) 0%, transparent 70%)", borderRadius: "50%", filter: "blur(40px)" }} />
+        <div style={{ position: "absolute", bottom: "-80px", right: "-80px", width: 400, height: 400, background: "radial-gradient(circle, rgba(13,148,136,0.10) 0%, transparent 70%)", borderRadius: "50%", filter: "blur(40px)" }} />
       </div>
 
-      <div className="w-full max-w-sm">
-        {/* Logo mark */}
-        <div className="flex flex-col items-center mb-8">
+      <div style={{ width: "100%", maxWidth: 400, position: "relative", zIndex: 1 }}>
+
+        {/* Logo */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 32 }}>
           <div
-            className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-xl shadow-emerald-500/30 mb-4 cursor-pointer hover:scale-105 transition-transform"
             onClick={() => navigate("/")}
+            style={{
+              width: 56, height: 56, borderRadius: 16,
+              background: "linear-gradient(135deg, #34d399, #0d9488)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 8px 28px rgba(16,185,129,0.38)",
+              cursor: "pointer", marginBottom: 14,
+              transition: "transform 0.2s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = "scale(1.07)"}
+            onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="w-6 h-6 text-white"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-white tracking-tight">
-            Time<span className="text-emerald-400">Tracker</span>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em", margin: 0 }}>
+            Time<span style={{ background: "linear-gradient(90deg,#10b981,#0d9488)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Tracker</span>
           </h1>
-          <p className="text-xs text-gray-500 mt-1 uppercase tracking-widest">
+          <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4, letterSpacing: "0.1em", textTransform: "uppercase" }}>
             {step === "login" ? "Welcome back" : "Account Recovery"}
           </p>
         </div>
 
         {/* Card */}
-        <div className="relative bg-gray-900/80 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-2xl overflow-hidden">
-          {/* Top accent line */}
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+        <div style={cardStyle}>
+          {/* Top accent */}
+          <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, transparent, #10b981, #0d9488, transparent)", borderRadius: "20px 20px 0 0" }} />
 
+          {/* Alerts */}
           {errorMsg && (
-            <div className="mb-4 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 text-center">
+            <div style={{ marginBottom: 20, padding: "10px 14px", borderRadius: 10, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.20)", color: "#f87171", fontSize: 13, textAlign: "center" }}>
               {errorMsg}
             </div>
           )}
-
           {successMsg && (
-            <div className="mb-4 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2 text-center">
+            <div style={{ marginBottom: 20, padding: "10px 14px", borderRadius: 10, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.20)", color: "#34d399", fontSize: 13, textAlign: "center" }}>
               {successMsg}
             </div>
           )}
 
-          {/* ------------- LOGIN FORM ------------- */}
+          {/* ── LOGIN ── */}
           {step === "login" && (
             <>
-              <h2 className="text-lg font-semibold text-white tracking-tight mb-1">
-                Sign in
-              </h2>
-              <p className="text-xs text-gray-500 mb-6">
-                Enter your credentials to continue
-              </p>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>Sign in</h2>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 24px" }}>Enter your credentials to continue</p>
 
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
-                {/* Email */}
-                <div className="space-y-1.5">
-                  <label className="text-xs text-gray-500 uppercase tracking-widest">
-                    Email
-                  </label>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="w-4 h-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                        <polyline points="22,6 12,13 2,6" />
-                      </svg>
-                    </div>
-                    <input
-                      type="email"
-                      placeholder="you@example.com"
-                      className="w-full bg-gray-800/80 border border-white/10 text-sm text-white placeholder-gray-600 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all duration-200"
-                      onChange={(e) =>
-                        setForm({ ...form, email: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
+              <form onSubmit={handleLoginSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>Email</label>
+                  <ThemedInput icon={<IconMail />} type="email" placeholder="you@example.com" onChange={e => setForm({ ...form, email: e.target.value })} required />
                 </div>
-
-                {/* Password */}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs text-gray-500 uppercase tracking-widest">
-                      Password
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStep("forgot");
-                        setErrorMsg("");
-                        setSuccessMsg("");
-                      }}
-                      className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
-                    >
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <label style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
+                    <button type="button" onClick={() => { setStep("forgot"); setErrorMsg(""); setSuccessMsg(""); }}
+                      style={{ fontSize: 12, color: "#10b981", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
                       Forgot Password?
                     </button>
                   </div>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="w-4 h-4"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <rect
-                          x="3"
-                          y="11"
-                          width="18"
-                          height="11"
-                          rx="2"
-                          ry="2"
-                        />
-                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                      </svg>
-                    </div>
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      className="w-full bg-gray-800/80 border border-white/10 text-sm text-white placeholder-gray-600 rounded-xl pl-10 pr-10 py-3 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all duration-200"
-                      onChange={(e) =>
-                        setForm({ ...form, password: e.target.value })
-                      }
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-400 transition-colors duration-200"
-                    >
-                      {showPassword ? (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="w-4 h-4"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                          <line x1="1" y1="1" x2="23" y2="23" />
-                        </svg>
-                      ) : (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="w-4 h-4"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      )}
+                  <div style={{ position: "relative" }}>
+                    <ThemedInput icon={<IconLock />} type={showPassword ? "text" : "password"} placeholder="••••••••" onChange={e => setForm({ ...form, password: e.target.value })} required extra={{ paddingRight: 40 }} />
+                    <button type="button" onClick={() => setShowPassword(v => !v)}
+                      style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", display: "flex" }}>
+                      {showPassword ? <IconEyeOff /> : <IconEye />}
                     </button>
                   </div>
                 </div>
-
-                {/* Submit */}
-                <button
-                  type="submit"
-                  className="w-full flex items-center justify-center gap-2 px-5 py-3 mt-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="w-4 h-4"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                    <polyline points="10 17 15 12 10 7" />
-                    <line x1="15" y1="12" x2="3" y2="12" />
+                <button type="submit" style={primaryBtnStyle}
+                  onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.02)"; e.currentTarget.style.boxShadow = "0 6px 28px rgba(16,185,129,0.50)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 4px 20px rgba(16,185,129,0.35)"; }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" y1="12" x2="3" y2="12" />
                   </svg>
                   Sign In
                 </button>
@@ -283,159 +270,50 @@ export default function Login() {
             </>
           )}
 
-          {/* ------------- FORGOT PASSWORD FORM ------------- */}
+          {/* ── FORGOT PASSWORD ── */}
           {step === "forgot" && (
             <>
-              <h2 className="text-lg font-semibold text-white tracking-tight mb-1">
-                Forgot password?
-              </h2>
-              <p className="text-xs text-gray-500 mb-6">
-                Enter your email and we'll send you a 4-digit passkey.
-              </p>
-
-              <form onSubmit={handleForgotSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs text-gray-500 uppercase tracking-widest">
-                    Email
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="email"
-                      placeholder="you@example.com"
-                      className="w-full bg-gray-800/80 border border-white/10 text-sm text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all duration-200"
-                      onChange={(e) =>
-                        setResetForm({ ...resetForm, email: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>Forgot Password?</h2>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 24px" }}>Enter your email and we'll send you a 4-digit passkey.</p>
+              <form onSubmit={handleForgotSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>Email</label>
+                  <ThemedInput type="email" placeholder="you@example.com" onChange={e => setResetForm({ ...resetForm, email: e.target.value })} required />
                 </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep("login");
-                      setErrorMsg("");
-                      setSuccessMsg("");
-                    }}
-                    className="w-1/3 flex items-center justify-center px-4 py-3 mt-2 rounded-xl text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 transition-all duration-300"
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-2/3 flex items-center justify-center gap-2 px-5 py-3 mt-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-lg shadow-emerald-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:scale-100"
-                  >
-                    {loading ? "Sending..." : "Send Passkey"}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" onClick={() => { setStep("login"); setErrorMsg(""); setSuccessMsg(""); }} style={{ ...secondaryBtnStyle, flex: 1 }}>Back</button>
+                  <button type="submit" disabled={loading} style={{ ...primaryBtnStyle, flex: 2, marginTop: 0, opacity: loading ? 0.6 : 1 }}>
+                    {loading ? "Sending…" : "Send Passkey"}
                   </button>
                 </div>
               </form>
             </>
           )}
 
-          {/* ------------- RESET PASSWORD FORM ------------- */}
+          {/* ── RESET PASSWORD ── */}
           {step === "reset" && (
             <>
-              <h2 className="text-lg font-semibold text-white tracking-tight mb-1">
-                Enter Passkey
-              </h2>
-              <p className="text-xs text-gray-500 mb-6">
-                Enter the 4-digit code sent to your email and your new password.
-              </p>
-
-              <form onSubmit={handleResetSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs text-gray-500 uppercase tracking-widest">
-                    4-Digit Passkey
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={4}
-                    placeholder="e.g. 1234"
-                    className="w-full bg-gray-800/80 border border-white/10 text-xl tracking-[0.5em] text-center text-white placeholder-gray-600 rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all duration-200"
-                    onChange={(e) =>
-                      setResetForm({ ...resetForm, passkey: e.target.value })
-                    }
-                    required
-                  />
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)", margin: "0 0 4px" }}>Enter Passkey</h2>
+              <p style={{ fontSize: 13, color: "var(--text-secondary)", margin: "0 0 24px" }}>Enter the 4-digit code sent to your email and your new password.</p>
+              <form onSubmit={handleResetSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div>
+                  <label style={labelStyle}>4-Digit Passkey</label>
+                  <ThemedInput type="text" maxLength={4} placeholder="• • • •" onChange={e => setResetForm({ ...resetForm, passkey: e.target.value })} required extra={{ textAlign: "center", letterSpacing: "0.4em", fontSize: 20 }} />
                 </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs text-gray-500 uppercase tracking-widest">
-                    New Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      placeholder="••••••••"
-                      className="w-full bg-gray-800/80 border border-white/10 text-sm text-white placeholder-gray-600 rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all duration-200"
-                      onChange={(e) =>
-                        setResetForm({
-                          ...resetForm,
-                          newPassword: e.target.value,
-                        })
-                      }
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-400 transition-colors duration-200"
-                    >
-                      {showPassword ? (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="w-4 h-4"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                          <line x1="1" y1="1" x2="23" y2="23" />
-                        </svg>
-                      ) : (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="w-4 h-4"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      )}
+                <div>
+                  <label style={labelStyle}>New Password</label>
+                  <div style={{ position: "relative" }}>
+                    <ThemedInput type={showPassword ? "text" : "password"} placeholder="••••••••" onChange={e => setResetForm({ ...resetForm, newPassword: e.target.value })} required extra={{ paddingRight: 40 }} />
+                    <button type="button" onClick={() => setShowPassword(v => !v)}
+                      style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", display: "flex" }}>
+                      {showPassword ? <IconEyeOff /> : <IconEye />}
                     </button>
                   </div>
                 </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep("login");
-                      setErrorMsg("");
-                      setSuccessMsg("");
-                    }}
-                    className="w-1/3 flex items-center justify-center px-4 py-3 mt-2 rounded-xl text-sm font-semibold text-white bg-gray-800 hover:bg-gray-700 transition-all duration-300"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-2/3 flex items-center justify-center gap-2 px-5 py-3 mt-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-lg shadow-emerald-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:scale-100"
-                  >
-                    {loading ? "Resetting..." : "Reset Password"}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button type="button" onClick={() => { setStep("login"); setErrorMsg(""); setSuccessMsg(""); }} style={{ ...secondaryBtnStyle, flex: 1 }}>Cancel</button>
+                  <button type="submit" disabled={loading} style={{ ...primaryBtnStyle, flex: 2, marginTop: 0, opacity: loading ? 0.6 : 1 }}>
+                    {loading ? "Resetting…" : "Reset Password"}
                   </button>
                 </div>
               </form>
@@ -443,14 +321,12 @@ export default function Login() {
           )}
         </div>
 
-        {/* Footer link */}
+        {/* Footer */}
         {step === "login" && (
-          <p className="text-center text-xs text-gray-600 mt-6">
+          <p style={{ textAlign: "center", fontSize: 13, color: "var(--text-secondary)", marginTop: 24 }}>
             Don't have an account?{" "}
-            <span
-              onClick={() => navigate("/register")}
-              className="text-emerald-400 hover:text-emerald-300 cursor-pointer transition-colors duration-200"
-            >
+            <span onClick={() => navigate("/register")}
+              style={{ color: "#10b981", fontWeight: 600, cursor: "pointer" }}>
               Register
             </span>
           </p>

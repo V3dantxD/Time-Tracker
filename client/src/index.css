@@ -1,18 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+/* ── Theme CSS Variables ────────────────────────────────────────────── */
+:root {
+  /* Dark (default) */
+  --bg-base:        #030712;
+  --bg-surface:     rgba(17,24,39,0.85);
+  --bg-elevated:    #111827;
+  --bg-hover:       rgba(255,255,255,0.05);
+  --border-subtle:  rgba(255,255,255,0.08);
+  --border-muted:   rgba(255,255,255,0.06);
+  --text-primary:   #f9fafb;
+  --text-secondary: #9ca3af;
+  --text-muted:     #4b5563;
+  --nav-bg:         rgba(8,12,20,0.96);
+  --input-bg:       rgba(31,41,55,0.85);
+  --scroll-thumb:   rgba(255,255,255,0.10);
+}
+
+/* ── Luxury warm light palette ──────────────────────────────────────── */
+html.light {
+  --bg-base:        #f5f3ef;        /* warm alabaster canvas         */
+  --bg-surface:     rgba(255,255,255,0.95);
+  --bg-elevated:    #ffffff;
+  --bg-hover:       rgba(26,24,37,0.04);
+  --border-subtle:  rgba(26,24,37,0.09);
+  --border-muted:   rgba(26,24,37,0.06);
+  --text-primary:   #1a1825;        /* deep warm almost-black        */
+  --text-secondary: #5a5770;        /* muted purple-gray             */
+  --text-muted:     #9290a0;        /* light muted                   */
+  --nav-bg:         rgba(255,255,255,0.97);
+  --input-bg:       #ffffff;
+  --scroll-thumb:   rgba(26,24,37,0.12);
+}
+
+/* ── Global base ─────────────────────────────────────────────────────── */
+html { transition: background-color 0.3s ease; }
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Smooth property transitions everywhere */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, box-shadow, opacity;
+  transition-duration: 0.22s;
+  transition-timing-function: ease;
+}
+/* Never slow down animations or transforms */
+.animate-spin,
+.animate-pulse,
+[class*="animate-"],
+[style*="animation"],
+button,
+a,
+[class*="hover:scale"],
+[class*="active:scale"],
+[class*="transition-transform"],
+[class*="group-hover"] {
+  transition-duration: unset;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 99px; }
+
+/* Utilities */
 @layer utilities {
   @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
-
-  .animate-fade-in-up {
-    animation: fadeInUp 0.8s ease-out forwards;
-  }
+  .animate-fade-in-up { animation: fadeInUp 0.7s ease-out forwards; }
 }

@@ -42,7 +42,7 @@ function Tasks() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-950 px-6 py-8 space-y-8">
+    <div className="min-h-screen px-6 py-8 space-y-8" style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}>
       {/* Ambient blobs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl" />

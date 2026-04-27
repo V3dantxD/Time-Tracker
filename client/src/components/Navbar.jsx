@@ -1,6 +1,7 @@
 import { useContext } from "react";
 import { AuthContext } from "../context/AuthContext";
-import { useNavigate, useLocation, NavLink } from "react-router-dom";
+import { useTheme } from "../context/ThemeContext";
+import { useNavigate, NavLink } from "react-router-dom";
 import API from "../api/axios";
 
 /* ── tiny SVG icon helpers ───────────────────────────────────────────── */
@@ -88,9 +89,72 @@ const NavItem = ({ to, icon, label }) => (
   </NavLink>
 );
 
+/* ── Theme Toggle — dark ↔ light ─────────────────────────────────── */
+const ThemeToggle = () => {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
+
+  const iconColor = isDark ? "#9ca3af" : "#d97706";
+
+  return (
+    <button
+      onClick={toggleTheme}
+      title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        border: "1px solid transparent",
+        background: "transparent",
+        color: iconColor,
+        cursor: "pointer",
+        flexShrink: 0,
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.background = "rgba(128,128,128,0.09)";
+        e.currentTarget.style.borderColor = "rgba(128,128,128,0.14)";
+        e.currentTarget.style.transform = "scale(1.1)";
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.background = "transparent";
+        e.currentTarget.style.borderColor = "transparent";
+        e.currentTarget.style.transform = "scale(1)";
+      }}
+    >
+      {isDark ? (
+        /* Moon */
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transition: "transform 0.4s ease" }}>
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      ) : (
+        /* Sun */
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transition: "transform 0.4s ease" }}>
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+      )}
+    </button>
+  );
+};
+
 /* ── Main Navbar ─────────────────────────────────────────────────────── */
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
+  const { theme } = useTheme();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -150,10 +214,15 @@ const Navbar = () => {
         .role-member { color: #6ee7b7; text-shadow: 0 0 8px rgba(52,211,153,0.5); }
       `}</style>
 
-      <nav className="navbar-root relative w-full px-6 py-2.5 flex items-center justify-between
-                      bg-[#080c14]/95 backdrop-blur-xl
-                      border-b border-white/[0.06] shadow-2xl shadow-black/60
-                      sticky top-0 z-50">
+      <nav
+        className="navbar-root relative w-full px-6 py-2.5 flex items-center justify-between
+                      backdrop-blur-xl border-b shadow-2xl shadow-black/60
+                      sticky top-0 z-50"
+        style={{
+          background: "var(--nav-bg)",
+          borderColor: "var(--border-muted)",
+        }}
+      >
 
         {/* ── Logo ─────────────────────────────────────────────────── */}
         <button
@@ -167,7 +236,7 @@ const Navbar = () => {
                           group-hover:scale-110 transition-transform duration-300">
             <IconClock />
           </div>
-          <span className="text-base font-bold tracking-tight text-white leading-none">
+          <span style={{ color: "var(--text-primary)" }} className="text-base font-bold tracking-tight leading-none">
             Time
             <span className="bg-gradient-to-r from-emerald-400 to-teal-400
                              bg-clip-text text-transparent ml-0.5">
@@ -178,10 +247,10 @@ const Navbar = () => {
 
         {/* ── Center nav links (only when logged in) ────────────────── */}
         {user && (
-          <div className="absolute left-1/2 -translate-x-1/2
-                          hidden sm:flex items-center gap-1
-                          bg-white/[0.04] border border-white/[0.07]
-                          rounded-2xl px-2 py-1 backdrop-blur-sm">
+          <div
+            className="absolute left-1/2 -translate-x-1/2 hidden sm:flex items-center gap-1 rounded-2xl px-2 py-1 backdrop-blur-sm"
+            style={{ background: "var(--bg-hover)", border: "1px solid var(--border-subtle)" }}
+          >
             {isAdmin ? (
               <NavItem to="/admin" icon={<IconShield />} label="Admin Panel" />
             ) : (
@@ -194,12 +263,17 @@ const Navbar = () => {
 
         {/* ── Right side ───────────────────────────────────────────── */}
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           {user ? (
             <>
               {/* User chip */}
-              <div className={`flex items-center gap-2.5
-                               bg-white/[0.04] border rounded-xl px-3 py-1.5
-                               ${isAdmin ? "border-violet-500/20" : "border-emerald-500/15"}`}>
+              <div
+                className={`flex items-center gap-2.5 rounded-xl px-3 py-1.5`}
+                style={{
+                  background: "var(--bg-hover)",
+                  border: `1px solid ${isAdmin ? "rgba(167,139,250,0.20)" : "rgba(52,211,153,0.15)"}`,
+                }}
+              >
                 {/* Avatar */}
                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center
                                  text-xs font-bold shrink-0 select-none
@@ -212,7 +286,7 @@ const Navbar = () => {
 
                 {/* Name + role */}
                 <div className="hidden sm:block leading-none">
-                  <p className="text-xs font-semibold text-white">{user.name}</p>
+                  <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{user.name}</p>
                   <span className={`text-[10px] font-medium capitalize
                                    ${isAdmin ? "role-admin" : "role-member"}`}>
                     {user.role}

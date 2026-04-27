@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback, useContext } from "react";
 import API from "../api/axios";
-import ScreenMonitorModal from "./ScreenMonitorModal";
 import { AuthContext } from "../context/AuthContext";
 
+const CAPTURE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
 export default function ScreenMonitor() {
-  const [phase, setPhase] = useState("modal"); // modal | active | warning
+  const [phase, setPhase] = useState("starting"); // starting | active | warning | denied
   const [captureCount, setCaptureCount] = useState(0);
   const [warningShown, setWarningShown] = useState(false);
 
@@ -13,89 +14,16 @@ export default function ScreenMonitor() {
   const streamRef = useRef(null);
   const timeoutRef = useRef(null);
   const canvasRef = useRef(null);
+  const hasStarted = useRef(false);
 
-  useEffect(() => {
-    if (!user || user.role === "admin") {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-      }
-    }
-  }, [user]);
-
-
+  /* ── fetch today's count on mount ─────────────────────────────── */
   useEffect(() => {
     API.get("/screenshots/mine")
       .then(({ data }) => setCaptureCount(data.todayCount || 0))
-      .catch(() => { });
+      .catch(() => {});
   }, []);
 
-  const captureAndUpload = useCallback(async () => {
-    const stream = streamRef.current;
-    if (!stream || !stream.active) return;
-
-    try {
-      const track = stream.getVideoTracks()[0];
-      const imageCapture = new ImageCapture(track);
-      const bitmap = await imageCapture.grabFrame();
-
-      const canvas = canvasRef.current;
-      canvas.width = Math.min(bitmap.width, 1280);
-      canvas.height = Math.round((bitmap.height / bitmap.width) * canvas.width);
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-
-      const imageData = canvas.toDataURL("image/jpeg", 0.7);
-      await API.post("/screenshots/upload", { imageData });
-      setCaptureCount((c) => c + 1);
-    } catch (err) {
-      console.error("Screenshot capture error:", err);
-    }
-  }, []);
-
-  const scheduleNext = useCallback(() => {
-    const delay = 45_000 + Math.floor(Math.random() * 45_000);
-    timeoutRef.current = setTimeout(async () => {
-      await captureAndUpload();
-      scheduleNext(); // chain
-    }, delay);
-  }, [captureAndUpload]);
-
-  const handleStreamEnded = useCallback(async () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    streamRef.current = null;
-
-    try {
-      await API.post("/screenshots/warning", {
-        reason: "Employee stopped screen sharing during active monitoring session",
-      });
-    } catch (err) {
-      console.error("Screenshot warning error:", err);
-    }
-
-    setWarningShown(true);
-    setPhase("warning");
-  }, []);
-
-  const handleAccepted = useCallback(
-    async (stream) => {
-      streamRef.current = stream;
-
-      stream.getVideoTracks()[0].addEventListener("ended", handleStreamEnded);
-
-      setPhase("active");
-      setWarningShown(false);
-
-      await captureAndUpload();
-      scheduleNext();
-    },
-    [captureAndUpload, scheduleNext, handleStreamEnded],
-  );
-
+  /* ── cleanup on unmount ────────────────────────────────────────── */
   useEffect(() => {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -105,17 +33,93 @@ export default function ScreenMonitor() {
     };
   }, []);
 
-  if (!user || user.role === "admin") return null;
+  /* ── capture & upload one frame ────────────────────────────────── */
+  const captureAndUpload = useCallback(async () => {
+    const stream = streamRef.current;
+    if (!stream || !stream.active) return;
+    try {
+      const track = stream.getVideoTracks()[0];
+      const imageCapture = new ImageCapture(track);
+      const bitmap = await imageCapture.grabFrame();
+      const canvas = canvasRef.current;
+      canvas.width = Math.min(bitmap.width, 1280);
+      canvas.height = Math.round((bitmap.height / bitmap.width) * canvas.width);
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const imageData = canvas.toDataURL("image/jpeg", 0.7);
+      await API.post("/screenshots/upload", { imageData });
+      setCaptureCount((c) => c + 1);
+    } catch (err) {
+      console.error("Screenshot capture error:", err);
+    }
+  }, []);
+
+  /* ── schedule next capture at exactly 5-minute intervals ───────── */
+  const scheduleNext = useCallback(() => {
+    timeoutRef.current = setTimeout(async () => {
+      await captureAndUpload();
+      scheduleNext();
+    }, CAPTURE_INTERVAL_MS);
+  }, [captureAndUpload]);
+
+  /* ── handle user stopping the share from the browser's UI ──────── */
+  const handleStreamEnded = useCallback(async () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    streamRef.current = null;
+    try {
+      await API.post("/screenshots/warning", {
+        reason: "Employee stopped screen sharing during active monitoring session",
+      });
+    } catch (err) {
+      console.error("Screenshot warning error:", err);
+    }
+    setWarningShown(true);
+    setPhase("warning");
+  }, []);
+
+  /* ── start screen share automatically ─────────────────────────── */
+  const startMonitoring = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 1, cursor: "always" },
+        audio: false,
+      });
+      streamRef.current = stream;
+      stream.getVideoTracks()[0].addEventListener("ended", handleStreamEnded);
+      setPhase("active");
+      setWarningShown(false);
+      await captureAndUpload();
+      scheduleNext();
+    } catch (err) {
+      console.warn("Screen share permission denied:", err.name);
+      try {
+        await API.post("/screenshots/warning", {
+          reason: "Employee denied screen sharing permission on login",
+        });
+      } catch {}
+      setPhase("denied");
+    }
+  }, [captureAndUpload, scheduleNext, handleStreamEnded]);
+
+  /* ── auto-start once when a non-admin employee is logged in ────── */
+  useEffect(() => {
+    if (!user || user.role === "admin") return;
+    if (hasStarted.current) return;
+    hasStarted.current = true;
+    startMonitoring();
+  }, [user, startMonitoring]);
+
+  /* don't render anything for admins or unauthenticated users */
+  if (!user || user.role === "admin") return <canvas ref={canvasRef} className="hidden" />;
 
   return (
     <>
       <canvas ref={canvasRef} className="hidden" />
 
-      {(phase === "modal" || phase === "warning") && (
-        <ScreenMonitorModal onAccepted={handleAccepted} />
-      )}
-
-      <div className="fixed bottom-6 right-6 z-50 w-80 bg-gray-900/90 backdrop-blur-md border border-white/10 rounded-2xl p-5 shadow-2xl overflow-hidden group">
+      <div className="fixed bottom-6 right-6 z-50 w-80 bg-gray-900/90 backdrop-blur-md border border-white/10 rounded-2xl p-5 shadow-2xl overflow-hidden">
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
 
         <div className="flex items-center gap-3">
@@ -126,7 +130,12 @@ export default function ScreenMonitor() {
                 : "bg-red-500/20 border border-red-500/30"
               }`}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 ${phase === "active" ? "text-white" : "text-red-400"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className={`w-4 h-4 ${phase === "active" ? "text-white" : "text-red-400"}`}
+              viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            >
               <rect x="2" y="3" width="20" height="14" rx="2" />
               <line x1="8" y1="21" x2="16" y2="21" />
               <line x1="12" y1="17" x2="12" y2="21" />
@@ -136,28 +145,38 @@ export default function ScreenMonitor() {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-white">Screen Monitoring</p>
             <p className="text-xs text-gray-500">
-              {phase === "active"
-                ? "Active — your admin can view your screen activity"
-                : "Interrupted — please restart to continue working"}
+              {phase === "active"   ? "Active — admin can view your screen activity"
+               : phase === "starting" ? "Requesting screen share…"
+               : phase === "denied"   ? "Permission denied — admin notified"
+               :                        "Interrupted — please refresh to resume"}
             </p>
           </div>
 
-          {/* Status pill — read only, no toggle */}
-          <div className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full border
+          <div
+            className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full border
             ${phase === "active"
               ? "bg-violet-500/10 border-violet-500/30 text-violet-400"
               : "bg-red-500/10 border-red-500/30 text-red-400"
             }`}
           >
-            <span className={`w-1.5 h-1.5 rounded-full ${phase === "active" ? "bg-violet-400 animate-pulse" : "bg-red-400 animate-pulse"}`} />
-            {phase === "active" ? "Monitoring" : "Stopped"}
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                phase === "active" ? "bg-violet-400 animate-pulse" : "bg-red-400 animate-pulse"
+              }`}
+            />
+            {phase === "active" ? "Live" : phase === "starting" ? "Starting" : "Stopped"}
           </div>
         </div>
 
-        {/* Warning banner — shown after user stopped the stream */}
-        {warningShown && (
+        {/* Warning banner */}
+        {(warningShown || phase === "denied") && (
           <div className="mt-4 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 flex items-start gap-3">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-red-400 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-4 h-4 text-red-400 shrink-0 mt-0.5"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+            >
               <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
               <line x1="12" y1="9" x2="12" y2="13" />
               <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -165,23 +184,21 @@ export default function ScreenMonitor() {
             <div>
               <p className="text-sm font-semibold text-red-400">⚠ Monitoring Interrupted</p>
               <p className="text-xs text-red-300/80 mt-0.5">
-                You stopped screen sharing. Your admin has been notified. You must
-                resume monitoring to continue using the application.
+                {phase === "denied"
+                  ? "Screen sharing was denied. Your admin has been notified."
+                  : "Screen sharing was stopped. Your admin has been notified."}
               </p>
             </div>
           </div>
         )}
 
-        {/* Subtle info — deliberately no countdown or next-capture time */}
+        {/* Capture count */}
         {phase === "active" && (
-          <div className="mt-3 flex items-center gap-4">
+          <div className="mt-3 flex items-center justify-between">
             <p className="text-xs text-gray-600">
-              <span className="text-gray-400 font-semibold">{captureCount}</span>{" "}
-              captures recorded today
+              <span className="text-gray-400 font-semibold">{captureCount}</span> captures today
             </p>
-            <p className="text-xs text-gray-700">
-              Captures happen at unpredictable intervals
-            </p>
+            <p className="text-xs text-gray-700">Every 5 minutes</p>
           </div>
         )}
       </div>
