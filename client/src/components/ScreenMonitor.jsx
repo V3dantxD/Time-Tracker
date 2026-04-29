@@ -71,7 +71,8 @@ export default function ScreenMonitor() {
     streamRef.current = null;
     try {
       await API.post("/screenshots/warning", {
-        reason: "Employee stopped screen sharing during active monitoring session",
+        reason:
+          "Employee stopped screen sharing during active monitoring session",
       });
     } catch (err) {
       console.error("Screenshot warning error:", err);
@@ -113,7 +114,8 @@ export default function ScreenMonitor() {
   }, [user, startMonitoring]);
 
   /* don't render anything for admins or unauthenticated users */
-  if (!user || user.role === "admin") return <canvas ref={canvasRef} className="hidden" />;
+  if (!user || user.role === "admin")
+    return <canvas ref={canvasRef} className="hidden" />;
 
   return (
     <>
@@ -125,16 +127,21 @@ export default function ScreenMonitor() {
         <div className="flex items-center gap-3">
           <div
             className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-300
-            ${phase === "active"
+            ${
+              phase === "active"
                 ? "bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/30"
                 : "bg-red-500/20 border border-red-500/30"
-              }`}
+            }`}
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className={`w-4 h-4 ${phase === "active" ? "text-white" : "text-red-400"}`}
-              viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
               <rect x="2" y="3" width="20" height="14" rx="2" />
               <line x1="8" y1="21" x2="16" y2="21" />
@@ -143,28 +150,40 @@ export default function ScreenMonitor() {
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-white">Screen Monitoring</p>
+            <p className="text-sm font-semibold text-white">
+              Screen Monitoring
+            </p>
             <p className="text-xs text-gray-500">
-              {phase === "active"   ? "Active — admin can view your screen activity"
-               : phase === "starting" ? "Requesting screen share…"
-               : phase === "denied"   ? "Permission denied — admin notified"
-               :                        "Interrupted — please refresh to resume"}
+              {phase === "active"
+                ? "Active — admin can view your screen activity"
+                : phase === "starting"
+                  ? "Requesting screen share…"
+                  : phase === "denied"
+                    ? "Permission denied — admin notified"
+                    : "Interrupted — please refresh to resume"}
             </p>
           </div>
 
           <div
             className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full border
-            ${phase === "active"
-              ? "bg-violet-500/10 border-violet-500/30 text-violet-400"
-              : "bg-red-500/10 border-red-500/30 text-red-400"
+            ${
+              phase === "active"
+                ? "bg-violet-500/10 border-violet-500/30 text-violet-400"
+                : "bg-red-500/10 border-red-500/30 text-red-400"
             }`}
           >
             <span
               className={`w-1.5 h-1.5 rounded-full ${
-                phase === "active" ? "bg-violet-400 animate-pulse" : "bg-red-400 animate-pulse"
+                phase === "active"
+                  ? "bg-violet-400 animate-pulse"
+                  : "bg-red-400 animate-pulse"
               }`}
             />
-            {phase === "active" ? "Live" : phase === "starting" ? "Starting" : "Stopped"}
+            {phase === "active"
+              ? "Live"
+              : phase === "starting"
+                ? "Starting"
+                : "Stopped"}
           </div>
         </div>
 
@@ -174,15 +193,21 @@ export default function ScreenMonitor() {
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="w-4 h-4 text-red-400 shrink-0 mt-0.5"
-              viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
               <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
               <line x1="12" y1="9" x2="12" y2="13" />
               <line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
             <div>
-              <p className="text-sm font-semibold text-red-400">⚠ Monitoring Interrupted</p>
+              <p className="text-sm font-semibold text-red-400">
+                ⚠ Monitoring Interrupted
+              </p>
               <p className="text-xs text-red-300/80 mt-0.5">
                 {phase === "denied"
                   ? "Screen sharing was denied. Your admin has been notified."
@@ -196,7 +221,10 @@ export default function ScreenMonitor() {
         {phase === "active" && (
           <div className="mt-3 flex items-center justify-between">
             <p className="text-xs text-gray-600">
-              <span className="text-gray-400 font-semibold">{captureCount}</span> captures today
+              <span className="text-gray-400 font-semibold">
+                {captureCount}
+              </span>{" "}
+              captures today
             </p>
             <p className="text-xs text-gray-700">Every 5 minutes</p>
           </div>
