@@ -43,6 +43,22 @@ const timeLogSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+
+    // Productivity tracking
+    activeSeconds: {
+      type: Number, // seconds where mouse/keyboard was used
+      default: 0,
+    },
+
+    unwantedUrlHits: {
+      type: Number, // number of distraction events (window blur >30s etc.)
+      default: 0,
+    },
+
+    productivityScore: {
+      type: Number, // 0–100 calculated on stop
+      default: null,
+    },
   },
   { timestamps: true },
 );

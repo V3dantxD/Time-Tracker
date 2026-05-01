@@ -2,6 +2,7 @@ const express = require("express");
 const {
   startTimer,
   stopTimer,
+  pingActivity,
   getActiveTimeLog,
   getTimeLogs,
   getDashboardStats,
@@ -15,6 +16,7 @@ const router = express.Router();
 
 router.post("/start", protect, startTimer);
 router.post("/stop", protect, stopTimer);
+router.post("/activity", protect, pingActivity); // live activity ping
 router.get("/active", protect, getActiveTimeLog);
 router.get("/", protect, getTimeLogs);
 router.get("/stats", protect, getDashboardStats);

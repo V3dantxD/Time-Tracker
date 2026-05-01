@@ -198,7 +198,7 @@ function AnalyticsTab() {
   useEffect(() => {
     API.get("/timelogs/admin/members")
       .then(({ data }) => setMembers(data))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoadingMembers(false));
   }, []);
 
@@ -211,7 +211,7 @@ function AnalyticsTab() {
         `/timelogs/admin/members/${member._id}/stats`,
       );
       setMemberStats(data);
-    } catch {}
+    } catch { }
     setLoadingStats(false);
   };
 
@@ -333,29 +333,50 @@ function AnalyticsTab() {
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            {/* Low productivity banner */}
+            {memberStats.isLowProductivity && (
+              <div className="flex items-center gap-3 bg-red-500/10 border border-red-500/25 rounded-xl px-4 py-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-red-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <p className="text-xs text-red-300">
+                  <span className="font-semibold">Low activity today</span> — productivity below 30% of the 8-hour workday.
+                  Admin alert email has been sent.
+                </p>
+              </div>
+            )}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 {
                   label: "Total Tracked",
                   value: formatDuration(memberStats.totalTime),
+                  color: "text-emerald-400",
                 },
                 {
                   label: "Today",
                   value: formatDuration(memberStats.todayTime),
+                  color: "text-emerald-400",
                 },
                 {
                   label: "This Week",
                   value: formatDuration(memberStats.weeklyTime),
+                  color: "text-emerald-400",
                 },
-              ].map(({ label, value }) => (
-                <div
-                  key={label}
-                  className="bg-gray-900/80 border border-white/10 rounded-xl p-4 shadow-lg"
-                >
-                  <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">
-                    {label}
-                  </p>
-                  <p className="text-xl font-bold text-emerald-400">{value}</p>
+                {
+                  label: "Productivity",
+                  value: `${memberStats.todayProductivityScore ?? 0}%`,
+                  color:
+                    (memberStats.todayProductivityScore ?? 0) >= 70
+                      ? "text-emerald-400"
+                      : (memberStats.todayProductivityScore ?? 0) >= 40
+                        ? "text-yellow-400"
+                        : "text-red-400",
+                },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="bg-gray-900/80 border border-white/10 rounded-xl p-4 shadow-lg">
+                  <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">{label}</p>
+                  <p className={`text-xl font-bold ${color}`}>{value}</p>
                 </div>
               ))}
             </div>
@@ -384,7 +405,7 @@ function ScreenshotsTab() {
   useEffect(() => {
     API.get("/screenshots/admin/all")
       .then(({ data }) => setMembers(data))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoadingList(false));
   }, []);
 
@@ -398,7 +419,7 @@ function ScreenshotsTab() {
       setTotal(data.total);
       setPages(data.pages);
       setPage(pg);
-    } catch {}
+    } catch { }
     setLoading(false);
   };
 
@@ -652,7 +673,7 @@ function AttendanceTab() {
       try {
         const { data } = await API.get("/attendance/admin/summary");
         setSummary(data);
-      } catch {}
+      } catch { }
     };
     fetchSummary();
   }, []);
@@ -665,7 +686,7 @@ function AttendanceTab() {
           `/attendance/admin/all?startDate=${startDate}&endDate=${endDate}`,
         );
         setRecords(data);
-      } catch {}
+      } catch { }
       setLoading(false);
     };
     fetchRecords();
@@ -903,7 +924,7 @@ function MonitoringTab() {
               `/timelogs/admin/members/${m._id}/stats`,
             );
             memberStats[m._id] = stats;
-          } catch {}
+          } catch { }
         }),
       );
 
@@ -925,7 +946,7 @@ function MonitoringTab() {
       }));
 
       setData(merged);
-    } catch {}
+    } catch { }
     setLoading(false);
   };
 
@@ -1016,15 +1037,35 @@ function MonitoringTab() {
         {data.map(({ member, screenshot, attendance, stats }) => {
           const online = isOnline(screenshot);
           const todayHours = stats?.todayTime || 0;
-          const productivity = Math.min(
-            100,
-            Math.round((todayHours / (8 * 3600)) * 100),
-          );
+          // Use the real input-based productivity score if available
+          const productivity =
+            stats?.todayProductivityScore !== undefined
+              ? stats.todayProductivityScore
+              : Math.min(100, Math.round((todayHours / (8 * 3600)) * 100));
+          const isLowProductivity = productivity < 30;
+
+          const productivityBarColor =
+            productivity >= 70
+              ? "from-emerald-500 to-teal-400"
+              : productivity >= 40
+                ? "from-yellow-500 to-amber-400"
+                : "from-red-500 to-orange-400";
+
+          const productivityTextColor =
+            productivity >= 70
+              ? "text-emerald-400"
+              : productivity >= 40
+                ? "text-yellow-400"
+                : "text-red-400";
 
           return (
             <div
               key={member._id}
-              className="relative bg-gray-900/80 backdrop-blur-md border border-white/10 rounded-2xl overflow-hidden hover:border-emerald-500/20 transition-all duration-300 group"
+              className={`relative bg-gray-900/80 backdrop-blur-md border rounded-2xl overflow-hidden transition-all duration-300 group
+                ${isLowProductivity
+                  ? "border-red-500/30 hover:border-red-500/50"
+                  : "border-white/10 hover:border-emerald-500/20"
+                }`}
             >
               <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
@@ -1042,25 +1083,33 @@ function MonitoringTab() {
                     className={`absolute top-2 right-2 flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border
                     ${online ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400" : "bg-gray-800/80 border-white/10 text-gray-500"}`}
                   >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${online ? "bg-emerald-400 animate-pulse" : "bg-gray-600"}`}
-                    />
+                    <span className={`w-1.5 h-1.5 rounded-full ${online ? "bg-emerald-400 animate-pulse" : "bg-gray-600"}`} />
                     {online ? "Online" : "Offline"}
                   </div>
                   {/* Screenshot count */}
                   <div className="absolute top-2 left-2 text-xs text-white/70 bg-black/50 rounded-full px-2 py-0.5">
                     📸 {screenshot.todayCount} today
                   </div>
+                  {/* Low productivity badge */}
+                  {isLowProductivity && (
+                    <div className="absolute bottom-2 left-2 flex items-center gap-1 text-[10px] font-semibold text-red-300 bg-red-500/20 border border-red-500/30 rounded-full px-2 py-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                      Low Activity
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="h-32 bg-gray-800/40 flex items-center justify-center relative">
-                  <p className="text-xs text-gray-700">
-                    No screen captures yet
-                  </p>
+                  <p className="text-xs text-gray-700">No screen captures yet</p>
                   <div className="absolute top-2 right-2 flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-gray-800/80 border-white/10 text-gray-500">
-                    <span className="w-1.5 h-1.5 rounded-full bg-gray-600" />{" "}
-                    Offline
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-600" /> Offline
                   </div>
+                  {isLowProductivity && (
+                    <div className="absolute bottom-2 left-2 flex items-center gap-1 text-[10px] font-semibold text-red-300 bg-red-500/20 border border-red-500/30 rounded-full px-2 py-0.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                      Low Activity
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1071,40 +1120,41 @@ function MonitoringTab() {
                     {member.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">
-                      {member.name}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate">
-                      {member.email}
-                    </p>
+                    <p className="text-sm font-semibold text-white truncate">{member.name}</p>
+                    <p className="text-xs text-gray-500 truncate">{member.email}</p>
                   </div>
+                  {/* Low-productivity inline badge */}
+                  {isLowProductivity && (
+                    <span className="ml-auto shrink-0 text-[10px] font-bold text-red-300 bg-red-500/15 border border-red-500/25 rounded-full px-2 py-0.5 flex items-center gap-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                        <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                      </svg>
+                      &lt;30%
+                    </span>
+                  )}
                 </div>
 
                 {/* Today's hours + attendance */}
                 <div className="flex items-center justify-between text-xs">
                   <div>
                     <p className="text-gray-500">Today</p>
-                    <p className="text-emerald-400 font-bold text-sm">
-                      {formatDuration(todayHours)}
-                    </p>
+                    <p className="text-emerald-400 font-bold text-sm">{formatDuration(todayHours)}</p>
                   </div>
                   <div>
                     <p className="text-gray-500">Check In</p>
-                    <p className="text-white font-medium">
-                      {fmtTime(attendance?.checkIn)}
-                    </p>
+                    <p className="text-white font-medium">{fmtTime(attendance?.checkIn)}</p>
                   </div>
                   <div>
                     <p className="text-gray-500">Status</p>
                     <span
                       className={`text-xs font-medium border rounded-full px-2 py-0.5 capitalize
-                      ${
-                        attendance?.status === "present"
+                      ${attendance?.status === "present"
                           ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
                           : attendance?.status === "late"
                             ? "text-yellow-400 bg-yellow-500/10 border-yellow-500/20"
                             : "text-red-400 bg-red-500/10 border-red-500/20"
-                      }`}
+                        }`}
                     >
                       {attendance?.status || "absent"}
                     </span>
@@ -1113,20 +1163,18 @@ function MonitoringTab() {
 
                 {/* Productivity bar */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-xs text-gray-500">Productivity</p>
-                    <p className="text-xs font-semibold text-emerald-400">
-                      {productivity}%
-                    </p>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-xs text-gray-500">Productivity Score</p>
+                    <p className={`text-xs font-bold ${productivityTextColor}`}>{productivity}%</p>
                   </div>
                   <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-700"
+                      className={`h-full bg-gradient-to-r ${productivityBarColor} rounded-full transition-all duration-700`}
                       style={{ width: `${productivity}%` }}
                     />
                   </div>
                   <p className="text-[10px] text-gray-600 mt-1">
-                    Based on 8h workday
+                    Based on keyboard &amp; mouse activity
                   </p>
                 </div>
 
@@ -1134,10 +1182,7 @@ function MonitoringTab() {
                 {screenshot?.latest && (
                   <p className="text-[10px] text-gray-600">
                     Last capture:{" "}
-                    {new Date(screenshot.latest.capturedAt).toLocaleTimeString(
-                      "en-US",
-                      { hour: "2-digit", minute: "2-digit" },
-                    )}
+                    {new Date(screenshot.latest.capturedAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
                   </p>
                 )}
               </div>
@@ -1186,7 +1231,7 @@ export default function AdminDashboard() {
       try {
         const { data } = await API.get("/screenshots/admin/warnings");
         setWarningCount(data.length || 0);
-      } catch {}
+      } catch { }
     };
     poll();
     const interval = setInterval(poll, 15000);
@@ -1242,10 +1287,9 @@ export default function AdminDashboard() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`relative flex items-center gap-2 flex-1 justify-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200
-              ${
-                activeTab === tab.id
-                  ? "bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10"
-                  : "text-gray-500 hover:text-gray-300 hover:bg-white/5"
+              ${activeTab === tab.id
+                ? "bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10"
+                : "text-gray-500 hover:text-gray-300 hover:bg-white/5"
               }`}
           >
             <svg
