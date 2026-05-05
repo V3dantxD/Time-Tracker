@@ -167,6 +167,7 @@ const getTimeLogs = async (req, res, next) => {
   try {
     const logs = await TimeLog.find({ user: req.user._id })
       .populate("project", "name")
+      .populate("task", "title")
       .sort({ createdAt: -1 });
 
     res.status(200).json(logs);
@@ -182,7 +183,9 @@ const getDashboardStats = async (req, res, next) => {
     const logs = await TimeLog.find({
       user: userId,
       endTime: { $ne: null },
-    }).populate("project", "name");
+    })
+      .populate("project", "name")
+      .populate("task", "title");
 
     const now = new Date();
 
@@ -199,6 +202,7 @@ const getDashboardStats = async (req, res, next) => {
     let todayActiveSeconds = 0;
     let todayUnwantedHits = 0;
     const projectStats = {};
+    const taskStats = {};
 
     const dailyMap = {};
     for (let i = 6; i >= 0; i--) {
@@ -249,6 +253,13 @@ const getDashboardStats = async (req, res, next) => {
       const projectName = log.project?.name || "Unknown";
       if (!projectStats[projectName]) projectStats[projectName] = 0;
       projectStats[projectName] += duration;
+
+      // Accumulate time per task (all-time)
+      if (log.task) {
+        const taskName = log.task.title || "Unnamed Task";
+        if (!taskStats[taskName]) taskStats[taskName] = 0;
+        taskStats[taskName] += duration;
+      }
     });
 
     // Today's aggregate productivity score
@@ -264,6 +275,7 @@ const getDashboardStats = async (req, res, next) => {
       todayActiveSeconds,
       todayProductivityScore,
       projectStats,
+      taskStats,
       dailyStats: Object.values(dailyMap),
       hourlyStats: Object.values(hourlyMap),
     });
@@ -301,7 +313,9 @@ const getMemberStats = async (req, res, next) => {
     const logs = await TimeLog.find({
       user: memberId,
       endTime: { $ne: null },
-    }).populate("project", "name");
+    })
+      .populate("project", "name")
+      .populate("task", "title");
 
     const now = new Date();
 
@@ -318,6 +332,7 @@ const getMemberStats = async (req, res, next) => {
     let todayActiveSeconds = 0;
     let todayUnwantedHits = 0;
     const projectStats = {};
+    const taskStats = {};
 
     const dailyMap = {};
     for (let i = 6; i >= 0; i--) {
@@ -367,6 +382,13 @@ const getMemberStats = async (req, res, next) => {
       const projectName = log.project?.name || "Unknown";
       if (!projectStats[projectName]) projectStats[projectName] = 0;
       projectStats[projectName] += duration;
+
+      // Accumulate time per task (all-time)
+      if (log.task) {
+        const taskName = log.task.title || "Unnamed Task";
+        if (!taskStats[taskName]) taskStats[taskName] = 0;
+        taskStats[taskName] += duration;
+      }
     });
 
     const todayProductivityScore =
@@ -387,6 +409,7 @@ const getMemberStats = async (req, res, next) => {
       todayProductivityScore,
       isLowProductivity,
       projectStats,
+      taskStats,
       dailyStats: Object.values(dailyMap),
       hourlyStats: Object.values(hourlyMap),
     });

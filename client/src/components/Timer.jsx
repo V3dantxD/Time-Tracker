@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useContext } from "react";
 import API from "../api/axios";
+import { AuthContext } from "../context/AuthContext";
 
 const formatTime = (seconds) => {
   const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
@@ -18,8 +19,12 @@ const PING_INTERVAL_MS   = 30_000;           // ping server every 30 s
 export default function Timer() {
   const [projects, setProjects]         = useState([]);
   const [selectedProject, setSelectedProject] = useState("");
+  const [tasks, setTasks]               = useState([]);
+  const [selectedTask, setSelectedTask] = useState("");
   const [isRunning, setIsRunning]       = useState(false);
   const [seconds, setSeconds]           = useState(0);
+
+  const { registerTimerStop } = useContext(AuthContext);
 
   // Productivity tracking (live, client-side)
   const [activeSeconds, setActiveSeconds]     = useState(0);
@@ -66,6 +71,18 @@ export default function Timer() {
       .then(({ data }) => setProjects(data))
       .catch(() => {});
   }, []);
+
+  // Load tasks when project changes
+  useEffect(() => {
+    setSelectedTask("");
+    if (!selectedProject) { setTasks([]); return; }
+    API.get("/tasks")
+      .then(({ data }) => {
+        // Filter to tasks belonging to the selected project
+        setTasks(data.filter((t) => (t.project?._id ?? t.project) === selectedProject));
+      })
+      .catch(() => setTasks([]));
+  }, [selectedProject]);
 
   // ── restore active timer on mount ────────────────────────────────────────
 
@@ -257,6 +274,7 @@ export default function Timer() {
     }
     await API.post("/timelogs/start", {
       project: selectedProject,
+      task: selectedTask || undefined,
       description: "Working...",
     });
     lastActivityRef.current  = Date.now();
@@ -271,7 +289,7 @@ export default function Timer() {
     setIsRunning(true);
   };
 
-  const stopTimer = async () => {
+  const stopTimer = useCallback(async () => {
     if (stopCalledRef.current) return;
     stopCalledRef.current = true;
     try {
@@ -289,7 +307,12 @@ export default function Timer() {
     setShowWarning(false);
     warningShownRef.current  = false;
     stopCalledRef.current    = false;
-  };
+  }, []);
+
+
+  useEffect(() => {
+    registerTimerStop(stopTimer);
+  }, [registerTimerStop, stopTimer]);
 
   // ── derived display values ────────────────────────────────────────────────
 
@@ -376,7 +399,7 @@ export default function Timer() {
         </div>
 
         {/* Project selector */}
-        <div className="relative mb-6">
+        <div className="relative mb-4">
           <label className="text-xs text-gray-500 uppercase tracking-widest mb-2 block">Project</label>
           <div className="relative">
             <select
@@ -406,6 +429,31 @@ export default function Timer() {
               Create a project first to start tracking time
             </p>
           )}
+        </div>
+
+        {/* Task selector (optional) */}
+        <div className="relative mb-6">
+          <label className="text-xs text-gray-500 uppercase tracking-widest mb-2 block">Task <span className="text-gray-600 normal-case">(optional)</span></label>
+          <div className="relative">
+            <select
+              className="w-full bg-gray-800/80 border border-white/10 text-sm text-white rounded-xl px-4 py-3 pr-10 appearance-none focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              value={selectedTask}
+              onChange={(e) => setSelectedTask(e.target.value)}
+              disabled={isRunning || !selectedProject}
+            >
+              <option value="" className="bg-gray-900">
+                {!selectedProject ? "Select a project first" : tasks.length === 0 ? "No tasks for this project" : "No specific task"}
+              </option>
+              {tasks.map((t) => (
+                <option key={t._id} value={t._id} className="bg-gray-900">{t.title}</option>
+              ))}
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+          </div>
         </div>
 
         {/* Clock display */}

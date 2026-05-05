@@ -14,6 +14,15 @@ export const AuthProvider = ({ children }) => {
     screenStopRef.current = fn;
   }, []);
 
+  // ── Timer integration ───────────────────────────────────────────────────
+  // Timer registers its stop function so logout() can automatically stop
+  // an active timer before wiping user state.
+  const timerStopRef = useRef(null);
+
+  const registerTimerStop = useCallback((fn) => {
+    timerStopRef.current = fn;
+  }, []);
+
   // ── Auth actions ────────────────────────────────────────────────────────
 
   const login = (data) => {
@@ -32,12 +41,17 @@ export const AuthProvider = ({ children }) => {
       try { screenStopRef.current(); } catch { /* ignore */ }
       screenStopRef.current = null;
     }
+    // Stop timer (if active) before wiping user state
+    if (typeof timerStopRef.current === "function") {
+      try { timerStopRef.current(); } catch { /* ignore */ }
+      timerStopRef.current = null;
+    }
     localStorage.removeItem("user");
     setUser(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, register, registerScreenStop }}>
+    <AuthContext.Provider value={{ user, login, logout, register, registerScreenStop, registerTimerStop }}>
       {children}
     </AuthContext.Provider>
   );

@@ -109,6 +109,14 @@ export default function Stats() {
     );
   }
 
+  const taskChartData = Object.entries(stats.taskStats || {}).map(
+    ([key, value]) => ({ task: key, time: value }),
+  );
+
+  const topTask = taskChartData.length
+    ? taskChartData.reduce((a, b) => (a.time > b.time ? a : b))
+    : null;
+
   const projectChartData = Object.entries(stats.projectStats || {}).map(
     ([key, value]) => ({ project: key, time: value }),
   );
@@ -125,24 +133,14 @@ export default function Stats() {
     <div className="mt-6 space-y-5">
       <div className="flex items-center gap-3">
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-md shadow-emerald-500/30 shrink-0">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-4 h-4 text-white"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="20" x2="18" y2="10" />
             <line x1="12" y1="20" x2="12" y2="4" />
             <line x1="6" y1="20" x2="6" y2="14" />
           </svg>
         </div>
-        <h2 className="text-lg font-semibold text-white tracking-tight">
-          Analytics
-        </h2>
+        <h2 className="text-lg font-semibold text-white tracking-tight">Analytics</h2>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -160,25 +158,20 @@ export default function Stats() {
             color: "text-emerald-400",
           },
           {
-            label: "This Week",
-            value: formatDuration(stats.weeklyTime || 0),
-            sub: "last 7 days",
-            color: "text-teal-400",
-          },
-          {
             label: "Top Project",
             value: topProject?.project || "—",
             sub: topProject ? formatDuration(topProject.time) : "no data",
+            color: "text-teal-400",
+          },
+          {
+            label: "Top Task",
+            value: topTask?.task || "—",
+            sub: topTask ? formatDuration(topTask.time) : "no tasks logged",
             color: "text-emerald-400",
           },
         ].map(({ label, value, sub, color }) => (
-          <div
-            key={label}
-            className="bg-gray-900/80 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-lg"
-          >
-            <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">
-              {label}
-            </p>
+          <div key={label} className="bg-gray-900/80 backdrop-blur-md border border-white/10 rounded-xl p-4 shadow-lg">
+            <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">{label}</p>
             <p className={`text-xl font-bold truncate ${color}`}>{value}</p>
             <p className="text-xs text-gray-600 mt-0.5">{sub}</p>
           </div>
@@ -195,41 +188,18 @@ export default function Stats() {
               </linearGradient>
             </defs>
             <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.05)" />
-            <XAxis
-              dataKey="day"
-              tick={{ fill: "#6b7280", fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              tickFormatter={(v) => `${secondsToHours(v)}h`}
-              tick={{ fill: "#6b7280", fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-              width={36}
-            />
-            <Tooltip
-              content={<CustomLineTooltip />}
-              cursor={{ stroke: "rgba(255,255,255,0.06)" }}
-            />
-            <Line
-              type="monotone"
-              dataKey="duration"
-              stroke="url(#lineGradient)"
-              strokeWidth={2.5}
-              dot={{ fill: "#34d399", r: 4, strokeWidth: 0 }}
-              activeDot={{ r: 6, fill: "#34d399" }}
-            />
+            <XAxis dataKey="day" tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={(v) => `${secondsToHours(v)}h`} tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} width={36} />
+            <Tooltip content={<CustomLineTooltip />} cursor={{ stroke: "rgba(255,255,255,0.06)" }} />
+            <Line type="monotone" dataKey="duration" stroke="url(#lineGradient)" strokeWidth={2.5}
+              dot={{ fill: "#34d399", r: 4, strokeWidth: 0 }} activeDot={{ r: 6, fill: "#34d399" }} />
           </LineChart>
         </ResponsiveContainer>
       </SectionCard>
 
       <SectionCard title="Hours per Project">
         <ResponsiveContainer width="100%" height={240}>
-          <BarChart
-            data={projectChartData.map((d) => ({ ...d, time: d.time }))}
-            barCategoryGap="35%"
-          >
+          <BarChart data={projectChartData} barCategoryGap="35%">
             <defs>
               <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="#34d399" stopOpacity={1} />
@@ -237,31 +207,47 @@ export default function Stats() {
               </linearGradient>
             </defs>
             <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.05)" />
-            <XAxis
-              dataKey="project"
-              tick={{ fill: "#6b7280", fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              tickFormatter={(v) => `${secondsToHours(v)}h`}
-              tick={{ fill: "#6b7280", fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-              width={36}
-            />
-            <Tooltip
-              content={<CustomBarTooltip />}
-              cursor={{ fill: "rgba(255,255,255,0.04)" }}
-            />
-            <Bar
-              dataKey="time"
-              fill="url(#barGradient)"
-              radius={[6, 6, 0, 0]}
-            />
+            <XAxis dataKey="project" tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={(v) => `${secondsToHours(v)}h`} tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} width={36} />
+            <Tooltip content={<CustomBarTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+            <Bar dataKey="time" fill="url(#barGradient)" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </SectionCard>
+
+      {/* Hours per Task — only shown if tasks have been tracked */}
+      {taskChartData.length > 0 && (
+        <SectionCard title="Hours per Task">
+          <ResponsiveContainer width="100%" height={Math.max(200, taskChartData.length * 44)}>
+            <BarChart data={taskChartData} layout="vertical" barCategoryGap="30%">
+              <defs>
+                <linearGradient id="taskGradient" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#2dd4bf" stopOpacity={1} />
+                  <stop offset="100%" stopColor="#0d9488" stopOpacity={0.7} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid horizontal={false} stroke="rgba(255,255,255,0.05)" />
+              <XAxis
+                type="number"
+                tickFormatter={(v) => `${secondsToHours(v)}h`}
+                tick={{ fill: "#6b7280", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="task"
+                width={130}
+                tick={{ fill: "#9ca3af", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip content={<CustomBarTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+              <Bar dataKey="time" fill="url(#taskGradient)" radius={[0, 6, 6, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </SectionCard>
+      )}
 
       <SectionCard title="Productivity by Hour (6am – 11pm)">
         <ResponsiveContainer width="100%" height={200}>
@@ -273,28 +259,10 @@ export default function Stats() {
               </linearGradient>
             </defs>
             <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.05)" />
-            <XAxis
-              dataKey="hour"
-              tick={{ fill: "#6b7280", fontSize: 10 }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              tickFormatter={(v) => `${secondsToHours(v)}h`}
-              tick={{ fill: "#6b7280", fontSize: 11 }}
-              axisLine={false}
-              tickLine={false}
-              width={36}
-            />
-            <Tooltip
-              content={<CustomBarTooltip />}
-              cursor={{ fill: "rgba(255,255,255,0.04)" }}
-            />
-            <Bar
-              dataKey="duration"
-              fill="url(#hourGradient)"
-              radius={[4, 4, 0, 0]}
-            />
+            <XAxis dataKey="hour" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={(v) => `${secondsToHours(v)}h`} tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} width={36} />
+            <Tooltip content={<CustomBarTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+            <Bar dataKey="duration" fill="url(#hourGradient)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </SectionCard>

@@ -69,6 +69,9 @@ function MemberStatsCharts({ stats }) {
   const projectChartData = Object.entries(stats.projectStats || {}).map(
     ([key, value]) => ({ project: key, time: value }),
   );
+  const taskChartData = Object.entries(stats.taskStats || {}).map(
+    ([key, value]) => ({ task: key, time: value }),
+  );
   const hourlyFiltered = (stats.hourlyStats || []).filter(
     (h) => parseInt(h.hour) >= 6 && parseInt(h.hour) <= 23,
   );
@@ -148,6 +151,41 @@ function MemberStatsCharts({ stats }) {
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
+
+      {/* Hours per Task — only shown when the member has task-level logs */}
+      {taskChartData.length > 0 && (
+        <ChartCard title="Hours per Task">
+          <ResponsiveContainer width="100%" height={Math.max(180, taskChartData.length * 44)}>
+            <BarChart data={taskChartData} layout="vertical" barCategoryGap="30%">
+              <defs>
+                <linearGradient id="adminTaskGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#2dd4bf" stopOpacity={1} />
+                  <stop offset="100%" stopColor="#0d9488" stopOpacity={0.7} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid horizontal={false} stroke="rgba(255,255,255,0.05)" />
+              <XAxis
+                type="number"
+                tickFormatter={(v) => `${secondsToHours(v)}h`}
+                tick={{ fill: "#6b7280", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="task"
+                width={120}
+                tick={{ fill: "#9ca3af", fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip content={<CustomTooltip color="#2dd4bf" />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
+              <Bar dataKey="time" fill="url(#adminTaskGrad)" radius={[0, 6, 6, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
+
       <ChartCard title="Productivity by Hour (6am – 11pm)">
         <ResponsiveContainer width="100%" height={180}>
           <BarChart data={hourlyFiltered} barCategoryGap="20%">
