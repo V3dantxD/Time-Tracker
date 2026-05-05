@@ -158,7 +158,9 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
+    // Best-effort attendance checkout
     try { await API.post("/attendance/checkout"); } catch { /* best effort */ }
+    // logout() internally stops screen recording before clearing user state
     logout();
     navigate("/login");
   };

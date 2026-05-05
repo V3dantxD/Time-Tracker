@@ -8,11 +8,12 @@ const formatTime = (seconds) => {
   return { h, m, s };
 };
 
-// Domains considered "distractions" — used to label window-blur events
-const DISTRACTION_IDLE_MS = 30_000; // blur > 30 s = 1 distraction hit
-const INACTIVITY_WARN_MS  = 4.5 * 60 * 1000; // 4 min 30 s → show warning
-const INACTIVITY_STOP_MS  = 5   * 60 * 1000; // 5 min      → auto-stop
-const PING_INTERVAL_MS    = 30_000;           // ping server every 30 s
+// ── Thresholds ───────────────────────────────────────────────────────────────
+// Inactivity thresholds apply ONLY while the tab is visible (focused in browser).
+// While the employee is in another app, the idle clock is paused — that's normal work.
+const INACTIVITY_WARN_MS = 4.5 * 60 * 1000; // 4 min 30 s → show warning
+const INACTIVITY_STOP_MS = 5   * 60 * 1000; // 5 min      → auto-stop
+const PING_INTERVAL_MS   = 30_000;           // ping server every 30 s
 
 export default function Timer() {
   const [projects, setProjects]         = useState([]);
@@ -21,11 +22,11 @@ export default function Timer() {
   const [seconds, setSeconds]           = useState(0);
 
   // Productivity tracking (live, client-side)
-  const [activeSeconds, setActiveSeconds]       = useState(0);
-  const [unwantedUrlHits, setUnwantedUrlHits]   = useState(0);
+  const [activeSeconds, setActiveSeconds]     = useState(0);
+  const [unwantedUrlHits, setUnwantedUrlHits] = useState(0);
 
   // Toast / warning state
-  const [toast, setToast]       = useState(null); // { type: "warn"|"info"|"error", msg }
+  const [toast, setToast]           = useState(null); // { type: "warn"|"info"|"error", msg }
   const [showWarning, setShowWarning] = useState(false);
 
   // Refs (avoid stale closure issues inside event handlers)
@@ -33,9 +34,12 @@ export default function Timer() {
   const lastActivityRef      = useRef(Date.now());
   const activeSecondsRef     = useRef(0);
   const unwantedHitsRef      = useRef(0);
-  const blurTimeRef          = useRef(null);   // when window lost focus
   const warningShownRef      = useRef(false);
   const stopCalledRef        = useRef(false);  // prevent double-stop
+  // Track whether the tab is currently visible (employee is looking at the page)
+  const tabVisibleRef        = useRef(!document.hidden);
+  // When the tab became hidden (to detect return-to-tab)
+  const tabHiddenAtRef       = useRef(null);
 
   // Keep refs in sync with state
   useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
@@ -49,11 +53,11 @@ export default function Timer() {
     if (durationMs > 0) setTimeout(() => setToast(null), durationMs);
   }, []);
 
-  const dismissWarning = () => {
+  const dismissWarning = useCallback(() => {
     setShowWarning(false);
     warningShownRef.current = false;
-    lastActivityRef.current = Date.now(); // reset the clock
-  };
+    lastActivityRef.current = Date.now(); // reset the idle clock
+  }, []);
 
   // ── fetch projects ────────────────────────────────────────────────────────
 
@@ -95,7 +99,44 @@ export default function Timer() {
     return () => clearInterval(id);
   }, [isRunning]);
 
+  // ── Tab visibility change ─────────────────────────────────────────────────
+  // When the employee switches to another app the tab goes hidden.
+  // We pause the idle clock so normal work in other apps doesn't trigger
+  // the inactivity auto-stop. When they return, we reset the clock.
+  //
+  // NOTE: switching to another native app (VS Code, Figma, etc.) is NOT a
+  // distraction. Only visiting an unrelated website intentionally is.
+  // Since we cannot spy on other browser tabs from here (browser security),
+  // we simply don't count tab-blur events as distractions at all.
+
+  useEffect(() => {
+    if (!isRunning) return;
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        // Tab went to background — remember when
+        tabVisibleRef.current = false;
+        tabHiddenAtRef.current = Date.now();
+        // Dismiss any inactivity warning: employee is working elsewhere
+        if (warningShownRef.current) {
+          warningShownRef.current = false;
+          setShowWarning(false);
+        }
+      } else {
+        // Tab came back into view — reset idle clock from now
+        tabVisibleRef.current = true;
+        tabHiddenAtRef.current = null;
+        lastActivityRef.current = Date.now();
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [isRunning]);
+
   // ── mouse / keyboard activity listeners ──────────────────────────────────
+  // These only fire when the tab is focused, which is correct.
+  // We track them so we know the employee is actively using the browser tab.
 
   useEffect(() => {
     if (!isRunning) return;
@@ -106,11 +147,11 @@ export default function Timer() {
       if (warningShownRef.current) dismissWarning();
     };
 
-    window.addEventListener("mousemove", onActivity, { passive: true });
-    window.addEventListener("mousedown", onActivity, { passive: true });
-    window.addEventListener("keydown",   onActivity, { passive: true });
-    window.addEventListener("scroll",    onActivity, { passive: true });
-    window.addEventListener("touchstart",onActivity, { passive: true });
+    window.addEventListener("mousemove",  onActivity, { passive: true });
+    window.addEventListener("mousedown",  onActivity, { passive: true });
+    window.addEventListener("keydown",    onActivity, { passive: true });
+    window.addEventListener("scroll",     onActivity, { passive: true });
+    window.addEventListener("touchstart", onActivity, { passive: true });
 
     return () => {
       window.removeEventListener("mousemove",  onActivity);
@@ -119,14 +160,16 @@ export default function Timer() {
       window.removeEventListener("scroll",     onActivity);
       window.removeEventListener("touchstart", onActivity);
     };
-  }, [isRunning]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isRunning, dismissWarning]);
 
-  // ── accumulate activeSeconds each second ─────────────────────────────────
+  // ── accumulate activeSeconds each second (only while tab is visible) ──────
 
   useEffect(() => {
     if (!isRunning) return;
-    // Every second: if the user was active within the last 3 s, count it
+    // Every second: if the user was active in the tab within the last 3 s AND
+    // the tab is currently visible, count it as an active second.
     const id = setInterval(() => {
+      if (!tabVisibleRef.current) return; // employee is in another app — don't count
       const idleMs = Date.now() - lastActivityRef.current;
       if (idleMs < 3000) {
         setActiveSeconds((p) => {
@@ -138,36 +181,7 @@ export default function Timer() {
     return () => clearInterval(id);
   }, [isRunning]);
 
-  // ── window blur/focus → distraction detection ────────────────────────────
-
-  useEffect(() => {
-    if (!isRunning) return;
-
-    const onBlur = () => {
-      blurTimeRef.current = Date.now();
-    };
-
-    const onFocus = () => {
-      if (blurTimeRef.current === null) return;
-      const awayMs = Date.now() - blurTimeRef.current;
-      blurTimeRef.current = null;
-      if (awayMs >= DISTRACTION_IDLE_MS) {
-        setUnwantedUrlHits((p) => {
-          unwantedHitsRef.current = p + 1;
-          return p + 1;
-        });
-      }
-    };
-
-    window.addEventListener("blur",  onBlur);
-    window.addEventListener("focus", onFocus);
-    return () => {
-      window.removeEventListener("blur",  onBlur);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [isRunning]);
-
-  // ── inactivity watchdog ───────────────────────────────────────────────────
+  // ── inactivity watchdog (only fires while tab is visible) ─────────────────
 
   const performAutoStop = useCallback(async () => {
     if (stopCalledRef.current || !isRunningRef.current) return;
@@ -189,13 +203,17 @@ export default function Timer() {
     activeSecondsRef.current = 0;
     unwantedHitsRef.current  = 0;
     stopCalledRef.current    = false;
-    showToast("info", "⏱ Timer stopped automatically after 5 min of inactivity.", 6000);
+    showToast("info", "⏱ Timer stopped automatically after 5 min of inactivity in the browser tab.", 6000);
   }, [showToast]);
 
   useEffect(() => {
     if (!isRunning) return;
 
     const id = setInterval(() => {
+      // Only check idle if the tab is currently visible.
+      // If the employee is in another app, this check is skipped.
+      if (!tabVisibleRef.current) return;
+
       const idleMs = Date.now() - lastActivityRef.current;
 
       if (idleMs >= INACTIVITY_STOP_MS) {
@@ -241,9 +259,11 @@ export default function Timer() {
       project: selectedProject,
       description: "Working...",
     });
-    lastActivityRef.current = Date.now();
+    lastActivityRef.current  = Date.now();
     warningShownRef.current  = false;
     stopCalledRef.current    = false;
+    tabVisibleRef.current    = !document.hidden;
+    tabHiddenAtRef.current   = null;
     setActiveSeconds(0);
     setUnwantedUrlHits(0);
     activeSecondsRef.current = 0;
@@ -315,9 +335,9 @@ export default function Timer() {
                 <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
               </svg>
             </div>
-            <p className="mb-1 text-sm font-semibold text-yellow-400">Inactivity Detected</p>
+            <p className="mb-1 text-sm font-semibold text-yellow-400">Browser Tab Inactivity Detected</p>
             <p className="mb-5 text-xs text-gray-400">
-              No mouse or keyboard activity for 4.5 minutes.<br/>
+              No mouse or keyboard activity in this tab for 4.5 minutes.<br/>
               Timer will <span className="font-semibold text-white">auto-stop in 30 seconds</span>.
             </p>
             <button
@@ -428,7 +448,7 @@ export default function Timer() {
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
                   <path d="M9 12l2 2 4-4"/>
                 </svg>
-                <span className="text-gray-400">{activeSeconds}s active</span>
+                <span className="text-gray-400">{activeSeconds}s active in tab</span>
               </span>
               {unwantedUrlHits > 0 && (
                 <span className="flex items-center gap-1 text-orange-400">
@@ -440,7 +460,7 @@ export default function Timer() {
                 </span>
               )}
               <span className="text-gray-600">
-                Based on input activity
+                Tab activity only
               </span>
             </div>
           </div>

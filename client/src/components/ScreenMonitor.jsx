@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useContext } from "react";
+import { useNavigate } from "react-router-dom";
 import API from "../api/axios";
 import { AuthContext } from "../context/AuthContext";
 
@@ -7,14 +8,16 @@ const CAPTURE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 export default function ScreenMonitor() {
   const [phase, setPhase] = useState("starting"); // starting | active | warning | denied
   const [captureCount, setCaptureCount] = useState(0);
-  const [warningShown, setWarningShown] = useState(false);
 
-  const { user } = useContext(AuthContext);
+  const { user, logout, registerScreenStop } = useContext(AuthContext);
+  const navigate = useNavigate();
 
-  const streamRef = useRef(null);
-  const timeoutRef = useRef(null);
-  const canvasRef = useRef(null);
-  const hasStarted = useRef(false);
+  const streamRef    = useRef(null);
+  const timeoutRef   = useRef(null);
+  const canvasRef    = useRef(null);
+  const hasStarted   = useRef(false);
+  // Flag to prevent double-logout when our own logout() call triggers visibilitychange etc.
+  const isLoggingOut = useRef(false);
 
   /* ── fetch today's count on mount ─────────────────────────────── */
   useEffect(() => {
@@ -22,6 +25,32 @@ export default function ScreenMonitor() {
       .then(({ data }) => setCaptureCount(data.todayCount || 0))
       .catch(() => {});
   }, []);
+
+  /* ── stopStream helper — exposed via AuthContext so logout() can call it ── */
+  const stopStream = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    setPhase("warning");
+  }, []);
+
+  /* Register stopStream so AuthContext.logout() can call it */
+  useEffect(() => {
+    if (typeof registerScreenStop === "function") {
+      registerScreenStop(stopStream);
+    }
+    return () => {
+      // Deregister on unmount (e.g. admin view)
+      if (typeof registerScreenStop === "function") {
+        registerScreenStop(null);
+      }
+    };
+  }, [registerScreenStop, stopStream]);
 
   /* ── cleanup on unmount ────────────────────────────────────────── */
   useEffect(() => {
@@ -42,7 +71,7 @@ export default function ScreenMonitor() {
       const imageCapture = new ImageCapture(track);
       const bitmap = await imageCapture.grabFrame();
       const canvas = canvasRef.current;
-      canvas.width = Math.min(bitmap.width, 1280);
+      canvas.width  = Math.min(bitmap.width, 1280);
       canvas.height = Math.round((bitmap.height / bitmap.width) * canvas.width);
       const ctx = canvas.getContext("2d");
       ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
@@ -62,24 +91,32 @@ export default function ScreenMonitor() {
     }, CAPTURE_INTERVAL_MS);
   }, [captureAndUpload]);
 
-  /* ── handle user stopping the share from the browser's UI ──────── */
+  /* ── handle user stopping the share from the browser's native UI ── */
+  // This fires when the employee clicks "Stop sharing" in the browser bar.
+  // Per requirements: cancelling recording must log the user out.
   const handleStreamEnded = useCallback(async () => {
+    if (isLoggingOut.current) return; // already handling logout
+    isLoggingOut.current = true;
+
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
     streamRef.current = null;
+
+    // Notify admin
     try {
       await API.post("/screenshots/warning", {
-        reason:
-          "Employee stopped screen sharing during active monitoring session",
+        reason: "Employee stopped screen sharing during active monitoring session",
       });
     } catch (err) {
       console.error("Screenshot warning error:", err);
     }
-    setWarningShown(true);
-    setPhase("warning");
-  }, []);
+
+    // Log the user out and redirect to login
+    logout();
+    navigate("/login");
+  }, [logout, navigate]);
 
   /* ── start screen share automatically ─────────────────────────── */
   const startMonitoring = useCallback(async () => {
@@ -91,19 +128,29 @@ export default function ScreenMonitor() {
       streamRef.current = stream;
       stream.getVideoTracks()[0].addEventListener("ended", handleStreamEnded);
       setPhase("active");
-      setWarningShown(false);
       await captureAndUpload();
       scheduleNext();
     } catch (err) {
       console.warn("Screen share permission denied:", err.name);
+      // Notify admin that employee denied/cancelled recording
       try {
         await API.post("/screenshots/warning", {
-          reason: "Employee denied screen sharing permission on login",
+          reason: "Employee denied or cancelled screen sharing permission on login",
         });
-      } catch {}
-      setPhase("denied");
+      } catch { /* best effort */ }
+
+      // Per requirements: denying / cancelling the permission dialog = logout
+      if (!isLoggingOut.current) {
+        isLoggingOut.current = true;
+        setPhase("denied");
+        // Small delay so the "denied" UI flashes briefly, then logout
+        setTimeout(() => {
+          logout();
+          navigate("/login");
+        }, 1500);
+      }
     }
-  }, [captureAndUpload, scheduleNext, handleStreamEnded]);
+  }, [captureAndUpload, scheduleNext, handleStreamEnded, logout, navigate]);
 
   /* ── auto-start once when a non-admin employee is logged in ────── */
   useEffect(() => {
@@ -150,17 +197,15 @@ export default function ScreenMonitor() {
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-white">
-              Screen Monitoring
-            </p>
+            <p className="text-sm font-semibold text-white">Screen Monitoring</p>
             <p className="text-xs text-gray-500">
               {phase === "active"
                 ? "Active — admin can view your screen activity"
                 : phase === "starting"
                   ? "Requesting screen share…"
                   : phase === "denied"
-                    ? "Permission denied — admin notified"
-                    : "Interrupted — please refresh to resume"}
+                    ? "Permission denied — logging out…"
+                    : "Stopped — logging out…"}
             </p>
           </div>
 
@@ -187,8 +232,8 @@ export default function ScreenMonitor() {
           </div>
         </div>
 
-        {/* Warning banner */}
-        {(warningShown || phase === "denied") && (
+        {/* Warning / denied banner */}
+        {(phase === "warning" || phase === "denied") && (
           <div className="mt-4 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 flex items-start gap-3">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -205,13 +250,11 @@ export default function ScreenMonitor() {
               <line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
             <div>
-              <p className="text-sm font-semibold text-red-400">
-                ⚠ Monitoring Interrupted
-              </p>
+              <p className="text-sm font-semibold text-red-400">⚠ Monitoring Stopped</p>
               <p className="text-xs text-red-300/80 mt-0.5">
                 {phase === "denied"
-                  ? "Screen sharing was denied. Your admin has been notified."
-                  : "Screen sharing was stopped. Your admin has been notified."}
+                  ? "Screen sharing was denied. Logging you out…"
+                  : "Screen sharing was stopped. Logging you out…"}
               </p>
             </div>
           </div>
@@ -221,9 +264,7 @@ export default function ScreenMonitor() {
         {phase === "active" && (
           <div className="mt-3 flex items-center justify-between">
             <p className="text-xs text-gray-600">
-              <span className="text-gray-400 font-semibold">
-                {captureCount}
-              </span>{" "}
+              <span className="text-gray-400 font-semibold">{captureCount}</span>{" "}
               captures today
             </p>
             <p className="text-xs text-gray-700">Every 5 minutes</p>
