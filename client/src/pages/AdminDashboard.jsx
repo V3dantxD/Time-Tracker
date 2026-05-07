@@ -1241,9 +1241,162 @@ function MonitoringTab() {
   );
 }
 
+/* ═══════════════ TAB: PROJECTS ═══════════════ */
+function ProjectsTab() {
+  const [projectStats, setProjectStats] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    API.get("/timelogs/admin/project-stats")
+      .then(({ data }) => setProjectStats(data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const scoreColor = (s) =>
+    s === null ? "text-gray-600"
+    : s >= 70 ? "text-emerald-400"
+    : s >= 40 ? "text-yellow-400"
+    : "text-red-400";
+
+  const scoreBar = (s) =>
+    s === null ? "from-gray-700 to-gray-700"
+    : s >= 70 ? "from-emerald-500 to-teal-400"
+    : s >= 40 ? "from-yellow-500 to-amber-400"
+    : "from-red-500 to-orange-400";
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-20">
+        <div className="w-6 h-6 border-2 border-emerald-500/30 border-t-emerald-400 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (projectStats.length === 0) {
+    return (
+      <div className="bg-gray-900/80 border border-white/10 rounded-2xl p-16 flex flex-col items-center text-center">
+        <p className="text-sm text-gray-400">No projects yet</p>
+        <p className="text-xs text-gray-600 mt-1">Create projects to see productivity data here</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Summary bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Total Projects", value: projectStats.length, color: "text-white" },
+          { label: "Active", value: projectStats.filter(p => p.project.status === "active").length, color: "text-emerald-400" },
+          { label: "Total Tracked", value: formatDuration(projectStats.reduce((s, p) => s + p.totalTime, 0)), color: "text-emerald-400" },
+          { label: "Tracked Today", value: formatDuration(projectStats.reduce((s, p) => s + p.todayTime, 0)), color: "text-teal-400" },
+        ].map(({ label, value, color }) => (
+          <div key={label} className="relative bg-gray-900/80 backdrop-blur-md border border-white/10 rounded-xl p-4 overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent" />
+            <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">{label}</p>
+            <p className={`text-xl font-bold ${color}`}>{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Project cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        {projectStats.map(({ project, totalTime, avgProductivity, todayTime, todayProductivity, totalSessions }) => (
+          <div
+            key={project._id}
+            className="relative bg-gray-900/80 backdrop-blur-md border border-white/10 rounded-2xl p-5 overflow-hidden
+              hover:border-emerald-500/25 transition-all duration-300 group"
+          >
+            {/* Top accent */}
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+            {/* Header */}
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400/20 to-teal-500/20 border border-emerald-400/25 flex items-center justify-center text-lg font-bold text-emerald-400 shrink-0">
+                {project.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-semibold text-white truncate">{project.name}</p>
+                  <span className={`text-[10px] font-medium border rounded-full px-2 py-0.5 capitalize shrink-0
+                    ${ project.status === "active"
+                        ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                        : "text-gray-500 bg-gray-700/30 border-gray-600/30"
+                    }`}>
+                    {project.status}
+                  </span>
+                </div>
+                {project.description && (
+                  <p className="text-xs text-gray-600 mt-0.5 truncate">{project.description}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">All-Time</p>
+                <p className="text-base font-bold text-white">{formatDuration(totalTime)}</p>
+                <p className="text-[10px] text-gray-600 mt-0.5">{totalSessions} session{totalSessions !== 1 ? "s" : ""}</p>
+              </div>
+              <div className="bg-gray-800/60 border border-white/5 rounded-xl p-3">
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Today</p>
+                <p className={`text-base font-bold ${todayTime > 0 ? "text-emerald-400" : "text-gray-600"}`}>
+                  {todayTime > 0 ? formatDuration(todayTime) : "—"}
+                </p>
+                <p className="text-[10px] text-gray-600 mt-0.5">{project.memberCount} member{project.memberCount !== 1 ? "s" : ""}</p>
+              </div>
+            </div>
+
+            {/* All-time Avg Productivity */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest">Avg Productivity</p>
+                <span className={`text-xs font-bold ${scoreColor(avgProductivity)}`}>
+                  {avgProductivity}%
+                </span>
+              </div>
+              <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full bg-gradient-to-r ${scoreBar(avgProductivity)} rounded-full transition-all duration-700`}
+                  style={{ width: `${avgProductivity}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-gray-700 mt-0.5">All-time average</p>
+            </div>
+
+            {/* Today Productivity */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest">Today's Productivity</p>
+                <span className={`text-xs font-bold ${scoreColor(todayProductivity)}`}>
+                  {todayProductivity !== null ? `${todayProductivity}%` : "No data"}
+                </span>
+              </div>
+              <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full bg-gradient-to-r ${scoreBar(todayProductivity)} rounded-full transition-all duration-700`}
+                  style={{ width: `${todayProductivity ?? 0}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-gray-700 mt-0.5">Based on active keyboard &amp; mouse</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════ MAIN COMPONENT ═══════════════════════ */
 const TABS = [
   { id: "analytics", label: "Analytics", icon: "M18 20V10M12 20V4M6 20v-6" },
+  {
+    id: "projects",
+    label: "Projects",
+    icon: "M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z",
+  },
   {
     id: "monitoring",
     label: "Monitoring",
@@ -1354,6 +1507,7 @@ export default function AdminDashboard() {
 
       {/* Tab Content */}
       {activeTab === "analytics" && <AnalyticsTab />}
+      {activeTab === "projects" && <ProjectsTab />}
       {activeTab === "monitoring" && <MonitoringTab />}
       {activeTab === "screenshots" && <ScreenshotsTab />}
     </div>

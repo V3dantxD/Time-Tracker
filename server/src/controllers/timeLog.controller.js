@@ -418,6 +418,77 @@ const getMemberStats = async (req, res, next) => {
   }
 };
 
+// GET /api/timelogs/admin/project-stats  (admin)
+// Returns per-project all-time and today productivity stats.
+const getProjectStats = async (req, res, next) => {
+  try {
+    const Project = require("../models/project.model");
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const projects = await Project.find().lean();
+
+    const results = await Promise.all(
+      projects.map(async (project) => {
+        const allLogs = await TimeLog.find({
+          project: project._id,
+          endTime: { $ne: null },
+        }).lean();
+
+        const todayLogs = allLogs.filter(
+          (l) => new Date(l.startTime) >= todayStart,
+        );
+
+        // All-time totals
+        const totalTime = allLogs.reduce((s, l) => s + (l.duration || 0), 0);
+        const scoredLogs = allLogs.filter((l) => l.productivityScore !== null);
+        const avgProductivity =
+          scoredLogs.length > 0
+            ? Math.round(
+                scoredLogs.reduce((s, l) => s + l.productivityScore, 0) /
+                  scoredLogs.length,
+              )
+            : 0;
+
+        // Today totals
+        const todayTime = todayLogs.reduce((s, l) => s + (l.duration || 0), 0);
+        const todayActiveSeconds = todayLogs.reduce(
+          (s, l) => s + (l.activeSeconds || 0),
+          0,
+        );
+        const todayUnwantedHits = todayLogs.reduce(
+          (s, l) => s + (l.unwantedUrlHits || 0),
+          0,
+        );
+        const todayProductivity =
+          todayTime > 0
+            ? calcScore(todayActiveSeconds, todayTime, todayUnwantedHits)
+            : null;
+
+        return {
+          project: {
+            _id: project._id,
+            name: project.name,
+            description: project.description,
+            status: project.status,
+            memberCount: project.members?.length || 0,
+          },
+          totalTime,
+          avgProductivity,
+          todayTime,
+          todayProductivity,
+          totalSessions: allLogs.length,
+        };
+      }),
+    );
+
+    res.json(results);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   startTimer,
   stopTimer,
@@ -427,4 +498,5 @@ module.exports = {
   getDashboardStats,
   getOrgMembers,
   getMemberStats,
+  getProjectStats,
 };

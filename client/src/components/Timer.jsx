@@ -13,38 +13,38 @@ const formatTime = (seconds) => {
 // Inactivity thresholds apply ONLY while the tab is visible (focused in browser).
 // While the employee is in another app, the idle clock is paused — that's normal work.
 const INACTIVITY_WARN_MS = 4.5 * 60 * 1000; // 4 min 30 s → show warning
-const INACTIVITY_STOP_MS = 5   * 60 * 1000; // 5 min      → auto-stop
-const PING_INTERVAL_MS   = 30_000;           // ping server every 30 s
+const INACTIVITY_STOP_MS = 5 * 60 * 1000; // 5 min      → auto-stop
+const PING_INTERVAL_MS = 30_000;           // ping server every 30 s
 
 export default function Timer() {
-  const [projects, setProjects]         = useState([]);
+  const [projects, setProjects] = useState([]);
   const [selectedProject, setSelectedProject] = useState("");
-  const [tasks, setTasks]               = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState("");
-  const [isRunning, setIsRunning]       = useState(false);
-  const [seconds, setSeconds]           = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+  const [seconds, setSeconds] = useState(0);
 
   const { registerTimerStop } = useContext(AuthContext);
 
   // Productivity tracking (live, client-side)
-  const [activeSeconds, setActiveSeconds]     = useState(0);
+  const [activeSeconds, setActiveSeconds] = useState(0);
   const [unwantedUrlHits, setUnwantedUrlHits] = useState(0);
 
   // Toast / warning state
-  const [toast, setToast]           = useState(null); // { type: "warn"|"info"|"error", msg }
+  const [toast, setToast] = useState(null); // { type: "warn"|"info"|"error", msg }
   const [showWarning, setShowWarning] = useState(false);
 
   // Refs (avoid stale closure issues inside event handlers)
-  const isRunningRef         = useRef(false);
-  const lastActivityRef      = useRef(Date.now());
-  const activeSecondsRef     = useRef(0);
-  const unwantedHitsRef      = useRef(0);
-  const warningShownRef      = useRef(false);
-  const stopCalledRef        = useRef(false);  // prevent double-stop
+  const isRunningRef = useRef(false);
+  const lastActivityRef = useRef(Date.now());
+  const activeSecondsRef = useRef(0);
+  const unwantedHitsRef = useRef(0);
+  const warningShownRef = useRef(false);
+  const stopCalledRef = useRef(false);  // prevent double-stop
   // Track whether the tab is currently visible (employee is looking at the page)
-  const tabVisibleRef        = useRef(!document.hidden);
+  const tabVisibleRef = useRef(!document.hidden);
   // When the tab became hidden (to detect return-to-tab)
-  const tabHiddenAtRef       = useRef(null);
+  const tabHiddenAtRef = useRef(null);
 
   // Keep refs in sync with state
   useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
@@ -69,7 +69,7 @@ export default function Timer() {
   useEffect(() => {
     API.get("/projects")
       .then(({ data }) => setProjects(data))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Load tasks when project changes
@@ -98,8 +98,8 @@ export default function Timer() {
           // restore any already-tracked activity from the server
           setActiveSeconds(data.activeSeconds || 0);
           setUnwantedUrlHits(data.unwantedUrlHits || 0);
-          activeSecondsRef.current  = data.activeSeconds || 0;
-          unwantedHitsRef.current   = data.unwantedUrlHits || 0;
+          activeSecondsRef.current = data.activeSeconds || 0;
+          unwantedHitsRef.current = data.unwantedUrlHits || 0;
         }
       } catch {
         /* no active timer — fine */
@@ -164,17 +164,17 @@ export default function Timer() {
       if (warningShownRef.current) dismissWarning();
     };
 
-    window.addEventListener("mousemove",  onActivity, { passive: true });
-    window.addEventListener("mousedown",  onActivity, { passive: true });
-    window.addEventListener("keydown",    onActivity, { passive: true });
-    window.addEventListener("scroll",     onActivity, { passive: true });
+    window.addEventListener("mousemove", onActivity, { passive: true });
+    window.addEventListener("mousedown", onActivity, { passive: true });
+    window.addEventListener("keydown", onActivity, { passive: true });
+    window.addEventListener("scroll", onActivity, { passive: true });
     window.addEventListener("touchstart", onActivity, { passive: true });
 
     return () => {
-      window.removeEventListener("mousemove",  onActivity);
-      window.removeEventListener("mousedown",  onActivity);
-      window.removeEventListener("keydown",    onActivity);
-      window.removeEventListener("scroll",     onActivity);
+      window.removeEventListener("mousemove", onActivity);
+      window.removeEventListener("mousedown", onActivity);
+      window.removeEventListener("keydown", onActivity);
+      window.removeEventListener("scroll", onActivity);
       window.removeEventListener("touchstart", onActivity);
     };
   }, [isRunning, dismissWarning]);
@@ -218,8 +218,8 @@ export default function Timer() {
     setActiveSeconds(0);
     setUnwantedUrlHits(0);
     activeSecondsRef.current = 0;
-    unwantedHitsRef.current  = 0;
-    stopCalledRef.current    = false;
+    unwantedHitsRef.current = 0;
+    stopCalledRef.current = false;
     showToast("info", "⏱ Timer stopped automatically after 5 min of inactivity in the browser tab.", 6000);
   }, [showToast]);
 
@@ -277,15 +277,15 @@ export default function Timer() {
       task: selectedTask || undefined,
       description: "Working...",
     });
-    lastActivityRef.current  = Date.now();
-    warningShownRef.current  = false;
-    stopCalledRef.current    = false;
-    tabVisibleRef.current    = !document.hidden;
-    tabHiddenAtRef.current   = null;
+    lastActivityRef.current = Date.now();
+    warningShownRef.current = false;
+    stopCalledRef.current = false;
+    tabVisibleRef.current = !document.hidden;
+    tabHiddenAtRef.current = null;
     setActiveSeconds(0);
     setUnwantedUrlHits(0);
     activeSecondsRef.current = 0;
-    unwantedHitsRef.current  = 0;
+    unwantedHitsRef.current = 0;
     setIsRunning(true);
   };
 
@@ -303,10 +303,10 @@ export default function Timer() {
     setActiveSeconds(0);
     setUnwantedUrlHits(0);
     activeSecondsRef.current = 0;
-    unwantedHitsRef.current  = 0;
+    unwantedHitsRef.current = 0;
     setShowWarning(false);
-    warningShownRef.current  = false;
-    stopCalledRef.current    = false;
+    warningShownRef.current = false;
+    stopCalledRef.current = false;
   }, []);
 
 
@@ -333,15 +333,15 @@ export default function Timer() {
     rawScore >= 70
       ? "text-emerald-400"
       : rawScore >= 40
-      ? "text-yellow-400"
-      : "text-red-400";
+        ? "text-yellow-400"
+        : "text-red-400";
 
   const scoreBg =
     rawScore >= 70
       ? "from-emerald-500 to-teal-400"
       : rawScore >= 40
-      ? "from-yellow-500 to-amber-400"
-      : "from-red-500 to-orange-400";
+        ? "from-yellow-500 to-amber-400"
+        : "from-red-500 to-orange-400";
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -354,13 +354,13 @@ export default function Timer() {
           <div className="mx-4 w-full max-w-sm rounded-2xl border border-yellow-500/40 bg-gray-900 p-6 shadow-2xl shadow-yellow-500/10 text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-yellow-500/15 border border-yellow-500/30">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
             </div>
             <p className="mb-1 text-sm font-semibold text-yellow-400">Browser Tab Inactivity Detected</p>
             <p className="mb-5 text-xs text-gray-400">
-              No mouse or keyboard activity in this tab for 4.5 minutes.<br/>
+              No mouse or keyboard activity in this tab for 4.5 minutes.<br />
               Timer will <span className="font-semibold text-white">auto-stop in 30 seconds</span>.
             </p>
             <button
@@ -386,7 +386,7 @@ export default function Timer() {
         <div className="flex items-center gap-3 mb-6">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-md shadow-emerald-500/30 shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
             </svg>
           </div>
           <h2 className="text-lg font-semibold text-white tracking-tight">Timer</h2>
@@ -417,14 +417,14 @@ export default function Timer() {
             </select>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 9 12 15 18 9"/>
+                <polyline points="6 9 12 15 18 9" />
               </svg>
             </div>
           </div>
           {projects.length === 0 && (
             <p className="text-xs text-gray-600 mt-2 flex items-center gap-1.5">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
               Create a project first to start tracking time
             </p>
@@ -450,7 +450,7 @@ export default function Timer() {
             </select>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 9 12 15 18 9"/>
+                <polyline points="6 9 12 15 18 9" />
               </svg>
             </div>
           </div>
@@ -493,16 +493,16 @@ export default function Timer() {
             <div className="flex items-center justify-between text-[11px] text-gray-500">
               <span className="flex items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
-                  <path d="M9 12l2 2 4-4"/>
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
+                  <path d="M9 12l2 2 4-4" />
                 </svg>
                 <span className="text-gray-400">{activeSeconds}s active in tab</span>
               </span>
               {unwantedUrlHits > 0 && (
                 <span className="flex items-center gap-1 text-orange-400">
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                    <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
                   </svg>
                   {unwantedUrlHits} distraction{unwantedUrlHits !== 1 ? "s" : ""}
                 </span>
@@ -525,7 +525,7 @@ export default function Timer() {
             className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3"/>
+              <polygon points="5 3 19 12 5 21 5 3" />
             </svg>
             Start Timer
           </button>
@@ -535,7 +535,7 @@ export default function Timer() {
             className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-white bg-gray-800/80 border border-red-500/30 hover:bg-red-500/10 hover:border-red-500/60 shadow-lg hover:shadow-red-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-red-400" viewBox="0 0 24 24" fill="currentColor">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <rect x="3" y="3" width="18" height="18" rx="2" />
             </svg>
             <span className="text-red-400">Stop Timer</span>
           </button>
@@ -546,14 +546,14 @@ export default function Timer() {
       {toast && (
         <div
           className={`mt-3 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-lg transition-all duration-300
-            ${toast.type === "warn"  ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-300" : ""}
-            ${toast.type === "info"  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : ""}
+            ${toast.type === "warn" ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-300" : ""}
+            ${toast.type === "info" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : ""}
             ${toast.type === "error" ? "border-red-500/30 bg-red-500/10 text-red-300" : ""}
           `}
         >
           <span className="mt-0.5 shrink-0">
-            {toast.type === "warn"  && "⚠"}
-            {toast.type === "info"  && "ℹ"}
+            {toast.type === "warn" && "⚠"}
+            {toast.type === "info" && "ℹ"}
             {toast.type === "error" && "✕"}
           </span>
           <span>{toast.msg}</span>

@@ -23,11 +23,19 @@ const recordCheckIn = async (req, res, next) => {
     const attendance = await Attendance.findOneAndUpdate(
       { user: userId, date: dateStr },
       {
+        // Status is set only on first insert (never overwritten on re-login)
         $setOnInsert: {
           user: userId,
           date: dateStr,
-          checkIn: now,
           status: isLate ? "late" : "present",
+          totalHours: 0,
+        },
+        // checkIn is always updated to the current session start so the
+        // SessionTimer can compute (totalHours + elapsed-since-checkIn).
+        // checkOut is cleared so admin sees the employee as "active" again.
+        $set: {
+          checkIn: now,
+          checkOut: null,
         },
       },
       { upsert: true, new: true },
@@ -57,9 +65,10 @@ const recordCheckOut = async (req, res, next) => {
 
     attendance.checkOut = now;
     if (attendance.checkIn) {
-      attendance.totalHours = Math.floor(
-        (now - attendance.checkIn) / 1000,
-      );
+      // Accumulate: add this session's duration to any previously worked seconds.
+      // This supports multiple login/logout cycles in the same day.
+      const sessionSeconds = Math.floor((now - attendance.checkIn) / 1000);
+      attendance.totalHours = (attendance.totalHours || 0) + sessionSeconds;
     }
     await attendance.save();
 

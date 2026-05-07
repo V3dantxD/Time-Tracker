@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, useState, useEffect, useRef } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { useNavigate, NavLink } from "react-router-dom";
@@ -55,6 +55,75 @@ const IconLogout = () => (
     <polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
   </svg>
 );
+
+/* ── Session Timer — counts up from today's check-in ────────────────── */
+const SessionTimer = () => {
+  const [elapsed, setElapsed] = useState(null); // seconds since checkIn
+  const intervalRef = useRef(null);
+
+  useEffect(() => {
+    let checkInTime = null;
+
+    API.get("/attendance/mine")
+      .then(({ data }) => {
+        const today = new Date().toISOString().split("T")[0];
+        const todayRecord = data.find((r) => r.date === today);
+        if (todayRecord?.checkIn) {
+          checkInTime = new Date(todayRecord.checkIn);
+          // totalHours holds seconds accumulated from all previous sessions today.
+          // Adding (Date.now() - checkIn) gives the correct running total across
+          // multiple login/logout cycles.
+          const prevSeconds = todayRecord.totalHours || 0;
+          const calc = () =>
+            Math.max(0, prevSeconds + Math.floor((Date.now() - checkInTime) / 1000));
+          setElapsed(calc());
+          intervalRef.current = setInterval(() => setElapsed(calc()), 1000);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  if (elapsed === null) return null;
+
+  const h = String(Math.floor(elapsed / 3600)).padStart(2, "0");
+  const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, "0");
+  const s = String(elapsed % 60).padStart(2, "0");
+
+  return (
+    <div
+      title="Session time since check-in"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "5px 10px",
+        borderRadius: 10,
+        background: "rgba(52,211,153,0.07)",
+        border: "1px solid rgba(52,211,153,0.18)",
+        flexShrink: 0,
+      }}
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24"
+        fill="none" stroke="#34d399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+      </svg>
+      <span style={{
+        fontFamily: "'Inter', monospace",
+        fontSize: 12,
+        fontWeight: 700,
+        letterSpacing: "0.04em",
+        color: "#34d399",
+        fontVariantNumeric: "tabular-nums",
+      }}>
+        {h}:{m}:{s}
+      </span>
+    </div>
+  );
+};
 
 /* ── NavItem component ───────────────────────────────────────────────── */
 const NavItem = ({ to, icon, label }) => (
@@ -295,6 +364,9 @@ const Navbar = () => {
                   </span>
                 </div>
               </div>
+
+              {/* Session timer — only for employees */}
+              {!isAdmin && <SessionTimer />}
 
               {/* Logout */}
               <button
