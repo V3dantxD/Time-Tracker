@@ -80,7 +80,7 @@ const SessionTimer = () => {
           intervalRef.current = setInterval(() => setElapsed(calc()), 1000);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
@@ -134,9 +134,9 @@ const NavItem = ({ to, icon, label }) => (
       `relative flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl
        transition-all duration-200 group
        ${isActive
-         ? "text-white bg-white/10 shadow-inner"
-         : "text-gray-400 hover:text-white hover:bg-white/6"
-       }`
+        ? "text-white bg-white/10 shadow-inner"
+        : "text-gray-400 hover:text-white hover:bg-white/6"
+      }`
     }
   >
     {({ isActive }) => (
@@ -327,7 +327,7 @@ const Navbar = () => {
             ) : (
               <NavItem to="/dashboard" icon={<IconGrid />} label="Dashboard" />
             )}
-            <NavItem to="/tasks"    icon={<IconTasks />}  label="Tasks"    />
+            <NavItem to="/tasks" icon={<IconTasks />} label="Tasks" />
             <NavItem to="/projects" icon={<IconFolder />} label="Projects" />
           </div>
         )}
@@ -349,9 +349,9 @@ const Navbar = () => {
                 <div className={`w-7 h-7 rounded-lg flex items-center justify-center
                                  text-xs font-bold shrink-0 select-none
                                  ${isAdmin
-                                   ? "avatar-admin bg-gradient-to-br from-violet-500/25 to-purple-600/25 border border-violet-500/40 text-violet-300"
-                                   : "bg-gradient-to-br from-emerald-400/20 to-teal-500/20 border border-emerald-400/30 text-emerald-300"
-                                 }`}>
+                    ? "avatar-admin bg-gradient-to-br from-violet-500/25 to-purple-600/25 border border-violet-500/40 text-violet-300"
+                    : "bg-gradient-to-br from-emerald-400/20 to-teal-500/20 border border-emerald-400/30 text-emerald-300"
+                  }`}>
                   {user.name?.charAt(0).toUpperCase()}
                 </div>
 
